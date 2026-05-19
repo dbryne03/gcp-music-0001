@@ -9,3 +9,4 @@ dbt/dbt_packages/
 dbt/logs/
 *.egg-info/
 .DS_Store
+TODO.md
