@@ -2,12 +2,13 @@
 
 Monthly music intelligence pipeline on Google Cloud Platform.
 
-**Live output:** [Looker Studio Dashboard](#) · [Google Sheets Report](#)  
-**Portfolio:** [davidbryneadedeji.com/docs/projects/gcp](https://davidbryneadedeji.com/docs/projects/gcp)
+[![Portfolio](https://img.shields.io/badge/Portfolio-Google%20Cloud%20Platform%20%230001-3b7d5c?style=flat-square)](https://davidbryneadedeji.com/docs/projects/gcp)
+[![Looker Studio](https://img.shields.io/badge/Live-Looker%20Studio%20Dashboard-4285F4?style=flat-square&logo=googleanalytics&logoColor=white)](#)
+[![Sheets](https://img.shields.io/badge/Live-Google%20Sheets%20Report-34A853?style=flat-square&logo=googlesheets&logoColor=white)](#)
 
 ---
 
-Infrastructure is deployed and runs entirely on Google Cloud Platform, provisioned via Pulumi. Source code is version-controlled here; live outputs are accessible via the links above.
+Infrastructure is deployed and runs entirely on Google Cloud Platform, provisioned via Pulumi. Source code is version-controlled here; live outputs are accessible via the badges above.
 
 A Technical Design Document is available on request at [davidbryneadedeji.com](https://davidbryneadedeji.com).
 
