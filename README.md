@@ -2,8 +2,28 @@
 
 Monthly music intelligence pipeline on Google Cloud Platform.
 
-**Sources:** Last.fm API · MusicBrainz JSON dump · Spotify Parquet dataset  
-**Stack:** Cloud Run Jobs · Kafka (Confluent Cloud) · GCS · BigQuery · dbt Core · Astronomer Cloud · Looker Studio · Pulumi (TypeScript)
+**Live output:** [Looker Studio Dashboard](#) · [Google Sheets Report](#)  
+**Portfolio:** [davidbryneadedeji.com/docs/projects/gcp](https://davidbryneadedeji.com/docs/projects/gcp)
+
+---
+
+This project is fully cloud-hosted. There is no local development environment — all infrastructure runs on GCP and is provisioned via Pulumi. The code in this repository is the artefact.
+
+Recruiters and hiring managers can review the source code here and the live outputs via the links above. A Technical Design Document is available on request at [davidbryneadedeji.com](https://davidbryneadedeji.com).
+
+## Stack
+
+| Layer | Technology |
+|:---|:---|
+| Extraction | Cloud Run Jobs, Python 3.12, Pydantic |
+| Messaging | Apache Kafka (Confluent Cloud) |
+| Storage | Google Cloud Storage |
+| Warehousing | Google BigQuery |
+| Transformation | dbt Core |
+| Orchestration | Astronomer Cloud (managed Airflow) |
+| Reporting | Looker Studio, Google Sheets |
+| IaC | Pulumi (TypeScript) |
+| CI/CD | GitHub Actions |
 
 ## Structure
 
@@ -17,28 +37,8 @@ dbt/
     staging/     Source conforming, one model per source
     intermediate/ Artist resolution, track enrichment
     mart/        dim_artist, dim_track, fact_chart_position
-dags/            Astronomer Cloud Airflow DAGs
+dags/            Astronomer Cloud Airflow DAG
 infra/           Pulumi TypeScript — GCP infrastructure
 .github/
   workflows/     CI/CD
 ```
-
-## Setup
-
-```bash
-cp .env.example .env
-# populate secrets
-
-# Pulumi
-cd infra && npm install && pulumi up
-
-# dbt
-cd dbt && pip install dbt-bigquery && dbt deps && dbt debug
-
-# Extractors (local)
-cd extractors/lastfm && pip install -r requirements.txt
-```
-
-## Environment Variables
-
-See `.env.example` for required configuration.
