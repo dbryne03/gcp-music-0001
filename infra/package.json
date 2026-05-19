@@ -1,0 +1,13 @@
+{
+  "name": "gcp-music-0001-infra",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@pulumi/gcp": "^7.0.0",
+    "@pulumi/pulumi": "^3.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  }
+}

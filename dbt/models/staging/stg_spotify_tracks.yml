@@ -1,0 +1,23 @@
+version: 2
+
+models:
+  - name: stg_spotify_tracks
+    description: Conformed Spotify track audio features
+    columns:
+      - name: track_id
+        tests: [unique, not_null]
+      - name: danceability
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+      - name: energy
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+      - name: valence
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1

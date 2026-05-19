@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: raw
+    database: "{{ env_var('GCP_PROJECT_ID') }}"
+    schema: raw
+    tables:
+      - name: lastfm
+        description: Last.fm chart and artist data loaded from Kafka consumer
+      - name: mb_dump
+        description: MusicBrainz JSON dump — artists, recordings, releases, genres
+      - name: spotify
+        description: Spotify tracks dataset — audio features per track

@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: stg_lastfm_charts
+    description: Conformed Last.fm weekly chart records
+    columns:
+      - name: chart_key
+        tests: [unique, not_null]
+      - name: artist_mbid
+        tests: [not_null]
+      - name: chart_week
+        tests: [not_null]
+      - name: rank
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 100
+      - name: listeners
+        tests: [not_null]
+      - name: playcount
+        tests: [not_null]

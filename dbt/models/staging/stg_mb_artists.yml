@@ -1,0 +1,10 @@
+version: 2
+
+models:
+  - name: stg_mb_artists
+    description: Conformed MusicBrainz artist records
+    columns:
+      - name: artist_mbid
+        tests: [unique, not_null]
+      - name: artist_name
+        tests: [not_null]

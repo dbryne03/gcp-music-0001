@@ -1,0 +1,18 @@
+version: 2
+
+models:
+  - name: fact_chart_position
+    description: Weekly Last.fm chart positions joined to artist and track dimensions
+    columns:
+      - name: chart_position_key
+        tests: [unique, not_null]
+      - name: artist_key
+        tests: [not_null]
+      - name: chart_week
+        tests: [not_null]
+      - name: rank
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 100

@@ -1,0 +1,11 @@
+name: gcp-music-0001
+description: GCP infrastructure for the music intelligence pipeline
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+config:
+  gcp:project:
+    default: ""
+  gcp:region:
+    default: europe-west2

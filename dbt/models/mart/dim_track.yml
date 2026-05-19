@@ -1,0 +1,12 @@
+version: 2
+
+models:
+  - name: dim_track
+    description: Track dimension — Spotify audio features joined to Last.fm play data
+    columns:
+      - name: track_key
+        tests: [unique, not_null]
+      - name: track_id
+        tests: [unique, not_null]
+      - name: track_name
+        tests: [not_null]

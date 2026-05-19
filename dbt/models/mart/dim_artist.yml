@@ -1,0 +1,12 @@
+version: 2
+
+models:
+  - name: dim_artist
+    description: Canonical artist dimension — MusicBrainz as primary source, enriched with Last.fm data
+    columns:
+      - name: artist_key
+        tests: [unique, not_null]
+      - name: artist_mbid
+        tests: [unique, not_null]
+      - name: artist_name
+        tests: [not_null]
