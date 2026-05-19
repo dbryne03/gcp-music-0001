@@ -7,9 +7,9 @@ Monthly music intelligence pipeline on Google Cloud Platform.
 
 ---
 
-This project is fully cloud-hosted. There is no local development environment — all infrastructure runs on GCP and is provisioned via Pulumi. The code in this repository is the artefact.
+Infrastructure is deployed and runs entirely on Google Cloud Platform, provisioned via Pulumi. Source code is version-controlled here; live outputs are accessible via the links above.
 
-Recruiters and hiring managers can review the source code here and the live outputs via the links above. A Technical Design Document is available on request at [davidbryneadedeji.com](https://davidbryneadedeji.com).
+A Technical Design Document is available on request at [davidbryneadedeji.com](https://davidbryneadedeji.com).
 
 ## Stack
 
