@@ -6,6 +6,11 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
+    inputs:
+      sha:
+        description: Git SHA to deploy — leave blank for HEAD of main
+        required: false
+        default: ""
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -13,6 +18,10 @@ concurrency:
 
 permissions:
   contents: read
+
+env:
+  PROJECT_ID: portfolio-hub-2026
+  DOCKER_BUILDKIT: "1"
 
 jobs:
 
@@ -29,13 +38,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ inputs.sha || github.event.workflow_run.head_sha || github.sha }}
 
       - name: Set derived variables
         run: |
           source infra/config.env
           echo "REGISTRY=${REGISTRY}" >> $GITHUB_ENV
-          echo "DEPLOY_SHA=${{ github.event.workflow_run.head_sha || github.sha }}" >> $GITHUB_ENV
+          echo "DEPLOY_SHA=${{ inputs.sha || github.event.workflow_run.head_sha || github.sha }}" >> $GITHUB_ENV
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v3
@@ -58,6 +67,8 @@ jobs:
           for DIR in "${!IMAGES[@]}"; do
             IMAGE="${REGISTRY}/${IMAGES[$DIR]}"
             docker build "extractors/${DIR}" \
+              --cache-from "type=gha,scope=${IMAGES[$DIR]}" \
+              --cache-to "type=gha,mode=max,scope=${IMAGES[$DIR]}" \
               --tag "${IMAGE}:${DEPLOY_SHA}" \
               --tag "${IMAGE}:latest" \
               --label "git.sha=${DEPLOY_SHA}"
@@ -69,6 +80,8 @@ jobs:
         run: |
           IMAGE="${REGISTRY}/dbt-runner"
           docker build dbt \
+            --cache-from "type=gha,scope=dbt-runner" \
+            --cache-to "type=gha,mode=max,scope=dbt-runner" \
             --tag "${IMAGE}:${DEPLOY_SHA}" \
             --tag "${IMAGE}:latest" \
             --label "git.sha=${DEPLOY_SHA}"
@@ -78,6 +91,7 @@ jobs:
   workloads:
     name: Deploy / Cloud Run Jobs
     needs: [images]
+    if: ${{ !cancelled() && needs.images.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -88,7 +102,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ inputs.sha || github.event.workflow_run.head_sha || github.sha }}
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v3
@@ -98,9 +112,16 @@ jobs:
       - name: Set up gcloud CLI
         uses: google-github-actions/setup-gcloud@v3
         with:
-          project_id: portfolio-hub-2026
+          project_id: ${{ env.PROJECT_ID }}
 
       - name: Deploy Cloud Run Jobs
         env:
-          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          DEPLOY_SHA: ${{ inputs.sha || github.event.workflow_run.head_sha || github.sha }}
         run: bash infra/deploy/jobs.sh
+
+      - name: Summary
+        run: |
+          DEPLOY_SHA="${{ inputs.sha || github.event.workflow_run.head_sha || github.sha }}"
+          echo "## Cloud Run Jobs deployed" >> $GITHUB_STEP_SUMMARY
+          echo "Image tag: \`${DEPLOY_SHA:0:7}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Environment: production" >> $GITHUB_STEP_SUMMARY

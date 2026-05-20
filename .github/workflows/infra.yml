@@ -61,3 +61,10 @@ jobs:
 
       - name: Provision IAM
         run: bash infra/provision/iam.sh
+
+      - name: Summary
+        run: |
+          SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
+          echo "## Infrastructure provisioned" >> $GITHUB_STEP_SUMMARY
+          echo "Commit: \`${SHA:0:7}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Environment: production" >> $GITHUB_STEP_SUMMARY
