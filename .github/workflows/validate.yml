@@ -53,7 +53,7 @@ jobs:
           cache-dependency-path: dbt/requirements.txt
 
       - name: Install dbt-bigquery
-        run: pip install dbt-bigquery
+        run: pip install -r dbt/requirements.txt
 
       - name: Write CI dbt profile
         run: |
