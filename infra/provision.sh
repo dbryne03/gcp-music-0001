@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Idempotent GCP resource bootstrap for gcp-music-0001.
+# Provisions static GCP infrastructure for gcp-music-0001.
+# Idempotent — checks existence before creating. Safe to re-run.
 # GitHub Actions SA required roles: serviceusage.serviceUsageAdmin,
 # storage.admin, bigquery.admin, artifactregistry.admin,
 # secretmanager.admin, iam.serviceAccountAdmin,
@@ -207,37 +208,6 @@ gcloud iam service-accounts add-iam-policy-binding "${CLOUDRUN_SA}" \
     --project="${PROJECT}"
 echo "  [ok]  github-actions-sa → serviceAccountUser on music-cloudrun-sa"
 
-# ── Cloud Run Jobs ────────────────────────────────────────────────────────────
-
-echo "=== Cloud Run Jobs ==="
-
-REGISTRY="${REGION}-docker.pkg.dev/${PROJECT}/music-pipeline"
-
-declare -A JOBS=(
-    ["lastfm-producer"]="${REGISTRY}/lastfm-producer:latest"
-    ["lastfm-consumer"]="${REGISTRY}/lastfm-consumer:latest"
-    ["musicbrainz-extractor"]="${REGISTRY}/musicbrainz-extractor:latest"
-    ["spotify-extractor"]="${REGISTRY}/spotify-extractor:latest"
-    ["dbt-runner"]="${REGISTRY}/dbt-runner:latest"
-)
-
-for JOB_NAME in "${!JOBS[@]}"; do
-    IMAGE="${JOBS[$JOB_NAME]}"
-    if gcloud run jobs describe "${JOB_NAME}" \
-            --project="${PROJECT}" --region="${REGION}" &>/dev/null 2>&1; then
-        echo "  [exists]  ${JOB_NAME}"
-    else
-        echo "  [create]  ${JOB_NAME}"
-        gcloud run jobs create "${JOB_NAME}" \
-            --image="${IMAGE}" \
-            --region="${REGION}" \
-            --project="${PROJECT}" \
-            --service-account="${CLOUDRUN_SA}" \
-            --max-retries=1 \
-            --task-timeout=3600
-    fi
-done
-
 # ── GCS Lifecycle ─────────────────────────────────────────────────────────────
 
 echo "=== GCS Lifecycle ==="
@@ -248,4 +218,4 @@ gcloud storage buckets update "gs://${BUCKET}" \
 echo "  [ok]  lifecycle rules applied to ${BUCKET}"
 
 echo ""
-echo "Bootstrap complete."
+echo "Provisioning complete."
