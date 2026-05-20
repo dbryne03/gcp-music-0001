@@ -1,3 +1,7 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent))
+
 from airflow import DAG
 from airflow.providers.google.cloud.operators.cloud_run import CloudRunExecuteJobOperator
 
