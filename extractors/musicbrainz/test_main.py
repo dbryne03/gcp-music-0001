@@ -73,6 +73,16 @@ def test_extract_returns_correct_row_count(test_archive, tmp_path):
     assert count == len(ARTIST_RECORDS)
 
 
+def test_extract_adds_ingested_at(test_archive, tmp_path):
+    from datetime import timedelta
+    out = tmp_path / "out.ndjson"
+    extract_and_filter(test_archive, out)
+    rows = [json.loads(line) for line in out.read_text().splitlines()]
+    timestamps = {r["_ingested_at"] for r in rows}
+    assert len(timestamps) == 1
+    assert "_ingested_at" in rows[0]
+
+
 def test_extract_normalises_field_names(test_archive, tmp_path):
     out = tmp_path / "out.ndjson"
     extract_and_filter(test_archive, out)

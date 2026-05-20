@@ -8,6 +8,8 @@ set -euo pipefail
 
 PROJECT="portfolio-hub-2026"
 REGION="europe-west2"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCHEMAS_DIR="${SCRIPT_DIR}/schemas"
 BUCKET="${PROJECT}-music-raw"
 CLOUDRUN_SA="music-cloudrun-sa@${PROJECT}.iam.gserviceaccount.com"
 AIRFLOW_SA="music-airflow-sa@${PROJECT}.iam.gserviceaccount.com"
@@ -63,6 +65,28 @@ else
         --description="dbt mart layer — dimensional models" \
         "${PROJECT}:music"
 fi
+
+# ── Raw Tables ────────────────────────────────────────────────────────────────
+
+echo "=== Raw Tables ==="
+
+declare -A RAW_TABLES=(
+    ["lastfm"]="${SCHEMAS_DIR}/lastfm.json"
+    ["mb_dump"]="${SCHEMAS_DIR}/mb_dump.json"
+    ["spotify"]="${SCHEMAS_DIR}/spotify.json"
+)
+
+for TABLE in "${!RAW_TABLES[@]}"; do
+    if bq show --project_id="${PROJECT}" "${PROJECT}:raw.${TABLE}" &>/dev/null 2>&1; then
+        echo "  [exists]  raw.${TABLE}"
+    else
+        echo "  [create]  raw.${TABLE}"
+        bq mk --table \
+            --project_id="${PROJECT}" \
+            "${PROJECT}:raw.${TABLE}" \
+            "${RAW_TABLES[$TABLE]}"
+    fi
+done
 
 # ── Artifact Registry ─────────────────────────────────────────────────────────
 

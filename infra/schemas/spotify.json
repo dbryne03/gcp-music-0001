@@ -1,0 +1,23 @@
+[
+  { "name": "track_id",         "type": "STRING",  "mode": "REQUIRED" },
+  { "name": "artists",          "type": "STRING",  "mode": "NULLABLE" },
+  { "name": "album_name",       "type": "STRING",  "mode": "NULLABLE" },
+  { "name": "track_name",       "type": "STRING",  "mode": "NULLABLE" },
+  { "name": "popularity",       "type": "INTEGER", "mode": "NULLABLE" },
+  { "name": "duration_ms",      "type": "INTEGER", "mode": "NULLABLE" },
+  { "name": "explicit",         "type": "BOOLEAN", "mode": "NULLABLE" },
+  { "name": "danceability",     "type": "FLOAT",   "mode": "NULLABLE" },
+  { "name": "energy",           "type": "FLOAT",   "mode": "NULLABLE" },
+  { "name": "key",              "type": "INTEGER", "mode": "NULLABLE" },
+  { "name": "loudness",         "type": "FLOAT",   "mode": "NULLABLE" },
+  { "name": "mode",             "type": "INTEGER", "mode": "NULLABLE" },
+  { "name": "speechiness",      "type": "FLOAT",   "mode": "NULLABLE" },
+  { "name": "acousticness",     "type": "FLOAT",   "mode": "NULLABLE" },
+  { "name": "instrumentalness", "type": "FLOAT",   "mode": "NULLABLE" },
+  { "name": "liveness",         "type": "FLOAT",   "mode": "NULLABLE" },
+  { "name": "valence",          "type": "FLOAT",   "mode": "NULLABLE" },
+  { "name": "tempo",            "type": "FLOAT",   "mode": "NULLABLE" },
+  { "name": "time_signature",   "type": "INTEGER", "mode": "NULLABLE" },
+  { "name": "track_genre",      "type": "STRING",  "mode": "NULLABLE" },
+  { "name": "_ingested_at",     "type": "TIMESTAMP","mode": "REQUIRED" }
+]

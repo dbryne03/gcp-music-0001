@@ -4,6 +4,7 @@ import logging
 import os
 import tarfile
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
@@ -105,6 +106,7 @@ def extract_and_filter(archive: Path, out: Path) -> int:
         Number of artist records written.
     """
     count = 0
+    ingested_at = datetime.now(timezone.utc).isoformat()
     with tarfile.open(archive, "r:xz") as tar:
         member = next(
             m for m in tar.getmembers()
@@ -115,15 +117,16 @@ def extract_and_filter(archive: Path, out: Path) -> int:
                 rec = json.loads(raw_line)
                 span = rec.get("life-span") or {}
                 dst.write(json.dumps({
-                    "id":         rec.get("id"),
-                    "name":       rec.get("name"),
-                    "sort_name":  rec.get("sort-name"),
-                    "type":       rec.get("type"),
-                    "country":    rec.get("country"),
-                    "begin_date": span.get("begin"),
-                    "end_date":   span.get("end"),
-                    "ended":      span.get("ended"),
-                    "genres":     [g["name"] for g in rec.get("genres") or []],
+                    "id":           rec.get("id"),
+                    "name":         rec.get("name"),
+                    "sort_name":    rec.get("sort-name"),
+                    "type":         rec.get("type"),
+                    "country":      rec.get("country"),
+                    "begin_date":   span.get("begin"),
+                    "end_date":     span.get("end"),
+                    "ended":        span.get("ended"),
+                    "genres":       [g["name"] for g in rec.get("genres") or []],
+                    "_ingested_at": ingested_at,
                 }) + "\n")
                 count += 1
     logger.info("Extracted %d artist records", count)
