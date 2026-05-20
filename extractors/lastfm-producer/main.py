@@ -25,12 +25,33 @@ class ArtistChart(BaseModel):
 
 
 def _chart_week() -> str:
+    """Return the ISO date of the Monday that opened the current chart week.
+
+    Returns:
+        Date string in YYYY-MM-DD format, always a Monday.
+    """
     today = datetime.now(timezone.utc)
     monday = today - timedelta(days=today.weekday())
     return monday.strftime("%Y-%m-%d")
 
 
 def fetch_charts(api_key: str) -> Generator[ArtistChart, None, None]:
+    """Paginate the Last.fm chart.getTopArtists endpoint and yield chart records.
+
+    Iterates all pages at PAGE_LIMIT artists per page. A 0.2 s delay is
+    applied between pages to stay within the Last.fm rate limit of 5 req/s.
+    Artist MBIDs returned as empty strings are normalised to None. Global
+    rank is calculated continuously across pages.
+
+    Args:
+        api_key: Last.fm API key used to authenticate each request.
+
+    Yields:
+        ArtistChart records in descending chart rank order.
+
+    Raises:
+        requests.HTTPError: If any API request returns a non-2xx status.
+    """
     week = _chart_week()
     page, total_pages = 1, None
 
@@ -66,6 +87,14 @@ def fetch_charts(api_key: str) -> Generator[ArtistChart, None, None]:
 
 
 def _kafka_producer() -> Producer:
+    """Build a Confluent Cloud producer configured for the music pipeline.
+
+    Credentials are read from environment variables injected by Secret Manager
+    at Cloud Run Job startup.
+
+    Returns:
+        A configured confluent_kafka Producer ready to produce messages.
+    """
     return Producer({
         "bootstrap.servers": os.environ["KAFKA_BOOTSTRAP_SERVERS"],
         "security.protocol": "SASL_SSL",
@@ -76,6 +105,19 @@ def _kafka_producer() -> Producer:
 
 
 def publish_to_kafka(records: list[ArtistChart], topic: str) -> None:
+    """Serialise and produce ArtistChart records to a Kafka topic.
+
+    Each record is serialised to JSON and produced asynchronously. Delivery
+    errors are collected via the on_delivery callback and raised as a single
+    RuntimeError after flush so no partial failures are silently swallowed.
+
+    Args:
+        records: List of ArtistChart records to publish.
+        topic: Kafka topic name to produce to.
+
+    Raises:
+        RuntimeError: If one or more messages fail delivery after flush.
+    """
     errors: list[str] = []
 
     def on_delivery(err, _msg):
@@ -98,6 +140,11 @@ def publish_to_kafka(records: list[ArtistChart], topic: str) -> None:
 
 
 def main() -> None:
+    """Entry point for the Last.fm producer Cloud Run Job.
+
+    Fetches all pages of the current chart.getTopArtists chart and publishes
+    every record to the configured Kafka topic for downstream consumption.
+    """
     api_key = os.environ["LASTFM_API_KEY"]
     topic = os.environ["KAFKA_TOPIC_LASTFM"]
 
