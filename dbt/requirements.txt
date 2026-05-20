@@ -1,1 +1,1 @@
-dbt-bigquery>=1.8
+dbt-bigquery>=1.8,<2.0

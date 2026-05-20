@@ -8,6 +8,11 @@ set -a; source "$(dirname "${BASH_SOURCE[0]}")/../config.env"; set +a
 
 TAG="${DEPLOY_SHA:-latest}"
 
+if [[ "${TAG}" != "latest" ]] && ! [[ "${TAG}" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "ERROR: DEPLOY_SHA must be a 40-character lowercase hex SHA or unset (defaults to latest)"
+    exit 1
+fi
+
 echo "=== Cloud Run Jobs (tag: ${TAG}) ==="
 
 declare -A JOBS=(

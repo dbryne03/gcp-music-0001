@@ -11,4 +11,9 @@ COPY models/ models/
 
 RUN dbt deps --profiles-dir .
 
+RUN useradd -r -u 1000 -s /bin/false dbtuser \
+    && chown -R dbtuser /dbt
+
+USER dbtuser
+
 ENTRYPOINT ["dbt", "--profiles-dir", "."]

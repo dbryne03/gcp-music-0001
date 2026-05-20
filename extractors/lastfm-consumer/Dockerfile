@@ -3,4 +3,6 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY main.py .
+RUN useradd -r -u 1000 -s /bin/false appuser
+USER appuser
 CMD ["python", "main.py"]
