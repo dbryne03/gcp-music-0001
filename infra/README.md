@@ -21,11 +21,9 @@ infra/
     iam.sh            Service accounts and IAM bindings
   deploy/
     jobs.sh           Cloud Run Jobs — create on first run, update image on re-run
-  schemas/
-    lastfm.json       BigQuery schema for raw.lastfm
-    mb_dump.json      BigQuery schema for raw.mb_dump
-    spotify.json      BigQuery schema for raw.spotify
 ```
+
+BigQuery table schemas live in `../dags/schemas/` — shared with the DAG layer.
 
 ---
 
