@@ -4,7 +4,7 @@ with source as (
 
 final as (
     select
-        {{ dbt_utils.generate_surrogate_key(['artist_mbid']) }} as artist_key,
+        {{ dbt_utils.generate_surrogate_key(['artist_name']) }} as artist_key,
         artist_mbid,
         artist_name,
         sort_name,

@@ -5,8 +5,10 @@ models:
     description: Canonical artist dimension — MusicBrainz as primary source, enriched with Last.fm data
     columns:
       - name: artist_key
+        description: Surrogate key on artist_name — always unique after qualify deduplication
         tests: [unique, not_null]
       - name: artist_mbid
-        tests: [unique, not_null]
+        description: MusicBrainz ID — nullable for artists unresolved by MBID or name match
+        tests: [unique]
       - name: artist_name
         tests: [not_null]
