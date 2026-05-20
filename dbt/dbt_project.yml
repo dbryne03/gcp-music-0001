@@ -17,9 +17,7 @@ models:
   gcp_music:
     staging:
       +materialized: view
-      +schema: staging
     intermediate:
       +materialized: ephemeral
     mart:
       +materialized: table
-      +schema: mart

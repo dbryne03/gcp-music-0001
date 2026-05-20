@@ -1,0 +1,11 @@
+gcp_music:
+  target: prod
+  outputs:
+    prod:
+      type: bigquery
+      method: oauth
+      project: portfolio-hub-2026
+      dataset: music
+      location: europe-west2
+      threads: 4
+      timeout_seconds: 300

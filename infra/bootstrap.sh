@@ -209,6 +209,7 @@ declare -A JOBS=(
     ["lastfm-consumer"]="${REGISTRY}/lastfm-consumer:latest"
     ["musicbrainz-extractor"]="${REGISTRY}/musicbrainz-extractor:latest"
     ["spotify-extractor"]="${REGISTRY}/spotify-extractor:latest"
+    ["dbt-runner"]="${REGISTRY}/dbt-runner:latest"
 )
 
 for JOB_NAME in "${!JOBS[@]}"; do
@@ -229,6 +230,15 @@ for JOB_NAME in "${!JOBS[@]}"; do
 done
 
 # TODO: dbt-runner — requires a dedicated dbt Docker image (not yet in CI)
+
+# ── GCS Lifecycle ─────────────────────────────────────────────────────────────
+
+echo "=== GCS Lifecycle ==="
+
+gcloud storage buckets update "gs://${BUCKET}" \
+    --lifecycle-file="${SCRIPT_DIR}/lifecycle.json" \
+    --project="${PROJECT}"
+echo "  [ok]  lifecycle rules applied to ${BUCKET}"
 
 echo ""
 echo "Bootstrap complete."

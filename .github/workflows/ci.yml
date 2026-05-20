@@ -89,21 +89,26 @@ jobs:
         run: pytest test_main.py -v
 
   validate-docker:
-    name: Validate / Docker build (${{ matrix.service }})
+    name: Validate / Docker build (${{ matrix.image }})
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        service: [lastfm-producer, lastfm-consumer, musicbrainz, spotify]
+        include:
+          - { dir: extractors/lastfm-producer, image: lastfm-producer }
+          - { dir: extractors/lastfm-consumer, image: lastfm-consumer }
+          - { dir: extractors/musicbrainz,     image: musicbrainz-extractor }
+          - { dir: extractors/spotify,          image: spotify-extractor }
+          - { dir: dbt,                         image: dbt-runner }
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Build ${{ matrix.service }} extractor image
+      - name: Build ${{ matrix.image }}
         run: |
-          docker build extractors/${{ matrix.service }} \
-            --tag ${{ matrix.service }}-extractor:ci \
+          docker build "${{ matrix.dir }}" \
+            --tag ${{ matrix.image }}:ci \
             --label "git.sha=${{ github.sha }}"
 
   # ── Deploy ────────────────────────────────────────────────────────────────────
@@ -151,6 +156,16 @@ jobs:
             docker push "${IMAGE}:${{ github.sha }}"
             docker push "${IMAGE}:latest"
           done
+
+      - name: Build and push dbt-runner image
+        run: |
+          IMAGE="${REGISTRY}/dbt-runner"
+          docker build dbt \
+            --tag "${IMAGE}:${{ github.sha }}" \
+            --tag "${IMAGE}:latest" \
+            --label "git.sha=${{ github.sha }}"
+          docker push "${IMAGE}:${{ github.sha }}"
+          docker push "${IMAGE}:latest"
 
   deploy-infra:
     name: Deploy / Bootstrap infrastructure
