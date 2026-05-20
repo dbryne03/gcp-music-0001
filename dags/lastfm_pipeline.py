@@ -28,7 +28,7 @@ _LASTFM_BLOB = (
 with DAG(
     dag_id="lastfm_pipeline",
     description="Last.fm — produce to Kafka, consume to GCS, load to BigQuery",
-    schedule="0 0 1 * *",
+    schedule=None,
     start_date=datetime(2026, 1, 1),
     catchup=False,
     tags=["music", "gcp", "lastfm", "monthly"],

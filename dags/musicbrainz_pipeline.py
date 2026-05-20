@@ -21,7 +21,7 @@ def _schema(name: str) -> list:
 with DAG(
     dag_id="musicbrainz_pipeline",
     description="MusicBrainz — download artist dump, stage to GCS, load to BigQuery",
-    schedule="0 0 1 * *",
+    schedule=None,
     start_date=datetime(2026, 1, 1),
     catchup=False,
     tags=["music", "gcp", "musicbrainz", "monthly"],

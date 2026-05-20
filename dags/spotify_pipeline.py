@@ -12,7 +12,7 @@ GCS_BUCKET = "{{ var.value.gcs_bucket_raw }}"
 with DAG(
     dag_id="spotify_pipeline",
     description="Spotify — download HuggingFace dataset, stage to GCS, load to BigQuery",
-    schedule="0 0 1 * *",
+    schedule=None,
     start_date=datetime(2026, 1, 1),
     catchup=False,
     tags=["music", "gcp", "spotify", "monthly"],
