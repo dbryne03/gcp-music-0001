@@ -2,21 +2,30 @@ version: 2
 
 models:
   - name: stg_lastfm_charts
-    description: Conformed Last.fm weekly chart records
+    description: >
+      Conformed Last.fm chart records sourced from the Kafka consumer.
+      One row per artist per chart week. artist_mbid is nullable — not all
+      charting artists are registered in MusicBrainz.
     columns:
       - name: chart_key
+        description: Surrogate key on artist_name + chart_week
         tests: [unique, not_null]
       - name: artist_mbid
+        description: MusicBrainz ID — null when the artist has no MBID
+      - name: artist_name
         tests: [not_null]
       - name: chart_week
+        description: ISO date of the Monday that opened this chart week
         tests: [not_null]
       - name: rank
         tests:
           - not_null
           - dbt_utils.accepted_range:
               min_value: 1
-              max_value: 100
+              max_value: 10000
       - name: listeners
         tests: [not_null]
       - name: playcount
+        tests: [not_null]
+      - name: _ingested_at
         tests: [not_null]

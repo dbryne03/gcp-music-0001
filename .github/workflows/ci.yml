@@ -70,7 +70,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [musicbrainz, spotify]
+        service: [lastfm, musicbrainz, spotify]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
