@@ -129,7 +129,8 @@ jobs:
 
       - name: Set derived variables
         run: |
-          echo "REGISTRY=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/music-pipeline" >> $GITHUB_ENV
+          source infra/config.env
+          echo "REGISTRY=${REGISTRY}" >> $GITHUB_ENV
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v3
