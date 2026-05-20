@@ -9,11 +9,13 @@ COPY packages.yml .
 COPY profiles.yml .
 COPY models/ models/
 
-RUN dbt deps --profiles-dir .
+ENV DBT_PROFILES_DIR=/dbt
+
+RUN dbt deps
 
 RUN useradd -r -u 1000 -s /bin/false dbtuser \
     && chown -R dbtuser /dbt
 
 USER dbtuser
 
-ENTRYPOINT ["dbt", "--profiles-dir", "."]
+ENTRYPOINT ["dbt"]

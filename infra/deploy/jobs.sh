@@ -89,5 +89,10 @@ gcloud run jobs update lastfm-consumer \
     --region="${REGION}" --project="${PROJECT}"
 echo "  [ok]  lastfm-consumer env + secrets"
 
+gcloud run jobs update dbt-runner \
+    --set-env-vars="DBT_PROFILES_DIR=/dbt" \
+    --region="${REGION}" --project="${PROJECT}"
+echo "  [ok]  dbt-runner env"
+
 echo ""
 echo "Cloud Run Jobs deployed."
