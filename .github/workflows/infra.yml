@@ -1,4 +1,5 @@
 name: Infrastructure
+run-name: "${{ github.event.workflow_run.head_commit.message || github.ref_name }}"
 
 on:
   workflow_run:
