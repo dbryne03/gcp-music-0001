@@ -34,7 +34,7 @@ with DAG(
         destination_project_dataset_table=config.BQ_SPOTIFY,
         source_format="PARQUET",
         write_disposition="WRITE_TRUNCATE",
-        autodetect=True,
+        schema_fields=config.load_schema("spotify"),
     )
 
     extract >> wait >> load

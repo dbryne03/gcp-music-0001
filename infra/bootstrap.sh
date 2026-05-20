@@ -229,8 +229,6 @@ for JOB_NAME in "${!JOBS[@]}"; do
     fi
 done
 
-# TODO: dbt-runner — requires a dedicated dbt Docker image (not yet in CI)
-
 # ── GCS Lifecycle ─────────────────────────────────────────────────────────────
 
 echo "=== GCS Lifecycle ==="
