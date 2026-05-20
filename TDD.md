@@ -1,7 +1,7 @@
 # Technical Design Document — gcp-music-0001
 
 **Status:** In Development  
-**Last updated:** 2026-05-20  
+**Last updated:** 2026-05-20    
 **Author:** David Bryne Adedeji
 
 ---
@@ -198,7 +198,7 @@ gs://portfolio-hub-2026-music-raw/
 | `raw` | `lastfm`, `mb_dump`, `spotify` | GCS load targets — schema defined in `infra/schemas/*.json` |
 | `music` | dbt mart models | Dimensional models consumed by reporting |
 
-Table schemas are defined in `infra/schemas/*.json` — single source of truth used by both `bootstrap.sh` (table creation) and the Airflow DAGs (`GCSToBigQueryOperator`).
+Table schemas are defined in `infra/schemas/*.json` — single source of truth used by both `infra/provision/bigquery.sh` (table creation) and the Airflow DAGs (`GCSToBigQueryOperator`).
 
 ---
 
@@ -294,54 +294,113 @@ flowchart TD
 
 Each `TriggerDagRunOperator` uses `wait_for_completion=True` and `poke_interval=60` — the orchestrator blocks on each sub-DAG and only advances when it succeeds. A failure in one source does not affect the others and can be restarted in isolation without re-running the full pipeline.
 
+**Astronomer deployment**
+
+| Setting | Value |
+|:---|:---|
+| Workspace | `data-portfolio` |
+| Deployment | `gcp-music-0001` |
+| Runtime | Astro 3.2-4 (Airflow 3.2.1) |
+| Executor | Astro Executor |
+| Scheduler | Small (up to 50 DAGs) |
+| Region | `europe-west3` |
+| DAG sync | `github.com/dbryne03/gcp-music-0001`, branch `main`, root path |
+| GCP connection | `music-airflow-sa` (type: `google_cloud_platform`) |
+
+All operators reference `config.GCP_CONN_ID = "music-airflow-sa"` — a single constant in `dags/config.py` that all DAGs import.
+
 ---
 
 ## 8. Infrastructure
 
-All GCP resources are provisioned by `infra/bootstrap.sh` using `gcloud` and `bq` CLI commands. The script is idempotent — it checks existence before every create. It runs automatically on every merge to `main` via GitHub Actions.
+GCP resources are provisioned by focused shell scripts in `infra/`. All scripts are idempotent, source shared variables from `infra/config.env`, and run automatically via GitHub Actions on every merge to `main`.
+
+```
+infra/
+  config.env            Shared KEY=VALUE configuration (no secrets)
+  provision/            Static infrastructure — no image dependency
+    apis.sh             GCP API enablement
+    storage.sh          GCS bucket + lifecycle rules
+    bigquery.sh         BigQuery datasets + raw tables
+    registry.sh         Artifact Registry repository
+    secrets.sh          Secret Manager secret placeholders
+    iam.sh              Service accounts + all IAM bindings
+  deploy/               Application workloads — runs after images are pushed
+    jobs.sh             Cloud Run Job create/update (pinned to commit SHA)
+  schemas/              BigQuery raw table schema definitions
+  lifecycle.json        GCS object retention policy
+```
 
 **Provisioned**
 - GCS bucket (`portfolio-hub-2026-music-raw`) with uniform bucket-level access
+- GCS lifecycle rule: `raw/` objects deleted after 90 days
 - BigQuery datasets: `raw`, `music`
-- BigQuery raw tables: `raw.lastfm`, `raw.mb_dump`, `raw.spotify` (schemas from `infra/schemas/`)
+- BigQuery raw tables: `raw.lastfm`, `raw.mb_dump`, `raw.spotify`
 - Artifact Registry repository: `music-pipeline` (Docker, `europe-west2`)
 - Secret Manager secrets: `lastfm-api-key`, `kafka-bootstrap-servers`, `kafka-api-key`, `kafka-api-secret`
 - Service accounts: `music-cloudrun-sa`, `music-airflow-sa`
 - IAM bindings:
   - `music-cloudrun-sa` → `storage.objectAdmin` on raw bucket, `bigquery.dataEditor` + `bigquery.jobUser` at project, `secretmanager.secretAccessor` on all secrets
-  - `music-airflow-sa` → `run.invoker` at project, `storage.objectViewer` + read on raw bucket, `bigquery.jobUser` + `bigquery.dataEditor` at project
-- Cloud Run Jobs: `lastfm-producer`, `lastfm-consumer`, `musicbrainz-extractor`, `spotify-extractor`, `dbt-runner`
-- GCS lifecycle rule: raw objects deleted after 90 days (`infra/lifecycle.json`)
+  - `music-airflow-sa` → `run.invoker` at project, `storage.objectViewer` on raw bucket, `bigquery.jobUser` + `bigquery.dataEditor` at project, `serviceAccountUser` on `music-cloudrun-sa`
+- Cloud Run Jobs: `lastfm-producer`, `lastfm-consumer`, `musicbrainz-extractor`, `spotify-extractor`, `dbt-runner` (images pinned to deploying commit SHA)
 
 **Manual (not in script)**
-- GitHub Actions SA (`github-actions-sa`) — created by hand; `SERVICE_ACCOUNT` secret set in GitHub repository settings
-- Secret values — added via GCP console after secrets are created
+- `github-actions-sa` — created by hand; `SERVICE_ACCOUNT` JSON key set in GitHub repository secrets
+- Secret values — added via GCP console (`gcloud secrets versions add`)
 
 ---
 
 ## 9. Security
 
-- All credentials stored in Secret Manager; Cloud Run Jobs access them as environment variables at runtime via the `music-cloudrun-sa` service account
-- No credentials committed to source control; `.env.example` documents required variables
-- Uniform bucket-level access removes per-object ACLs
-- IAM follows least privilege per service account — each SA is scoped to only the operations it performs
+**Secrets**
+- All credentials stored in GCP Secret Manager; injected as environment variables into Cloud Run Jobs at runtime — never in source code or Docker images
+- `.env` is gitignored; `.env.example` documents required variables with no values
+- Kafka broker uses SASL_SSL (encrypted + authenticated transport)
+
+**Containers**
+- All Docker images run as a non-root system user (UID 1000) — reduces blast radius if a dependency exploit achieves code execution inside a container
+- Dependency versions are upper-bounded (`>=x.y,<x+1.0`) to prevent silent major version upgrades introducing breaking changes or known-vulnerable releases
+
+**GCP IAM**
+- Uniform bucket-level access — no per-object ACLs
+- Each service account is scoped to its specific operations; no SA has project-wide owner or editor
+- `DEPLOY_SHA` in `deploy/jobs.sh` is validated as a 40-character hex SHA before use as a Docker image tag
+- Known gap: `github-actions-sa` holds `bigquery.admin` and `resourcemanager.projectIamAdmin` — high blast-radius roles required for bootstrapping. Recommend replacing with custom roles or narrower bindings once the infrastructure is stable
+
+**GitHub Actions**
+- Global `permissions: contents: read`; deploy jobs explicitly elevate to `id-token: write`
+- `SERVICE_ACCOUNT` JSON key stored as a GitHub encrypted secret — OIDC/Workload Identity Federation is the preferred long-term replacement
+- Docker layer cache uses `type=gha` scoped per image — no cross-image cache pollution
 
 ---
 
 ## 10. CI/CD
 
-GitHub Actions (`.github/workflows/ci.yml`).
+Three focused workflow files chain via `workflow_run` — each fires when the previous completes successfully on `main`. PRs trigger only `validate.yml`.
 
-**On every PR and push to main:**
-- `validate-dbt` — writes a CI dbt profile, runs `dbt deps` + `dbt parse` to validate all model SQL without a live BigQuery connection
-- `test-extractors` (matrix: `lastfm-producer`, `lastfm-consumer`, `musicbrainz`, `spotify`) — installs requirements and runs pytest for each extractor
-- `validate-docker` (matrix: same four) — builds each Docker image to confirm Dockerfiles are valid; no push
+```
+Validate ──(main, on success)──► Infrastructure ──(on success)──► Deploy
+```
 
-**On merge to `main` only:**
-- `deploy-infra` — authenticates to GCP, runs `infra/bootstrap.sh`
-- `deploy-images` — builds and pushes extractor images to Artifact Registry tagged with commit SHA and `latest` (runs after `deploy-infra`)
+**`validate.yml`** — runs on every PR and push
 
-`deploy-infra` and `deploy-images` run in parallel where possible; `deploy-images` gates on `deploy-infra` to ensure Artifact Registry exists first.
+| Job | Description |
+|:---|:---|
+| `dags` | `py_compile` on all DAG files — catches syntax errors before Astronomer sync |
+| `dbt` | Writes CI dbt profile, runs `dbt deps` + `dbt parse` |
+| `extractors` (matrix ×4) | `pip install` with cached deps + `pytest` |
+| `docker` (matrix ×5) | Docker build with GHA layer cache; no push |
+
+**`infra.yml`** — triggered by Validate completing on `main`
+- Authenticates to GCP, runs each provision script as a discrete named step
+- `cancel-in-progress: false` — partial infra state is worse than a stale run
+
+**`deploy.yml`** — triggered by Infrastructure completing on `main`
+- Accepts optional `sha` input for targeted redeploys without a new commit
+- Builds and pushes all images with GHA layer cache; tags with commit SHA and `latest`
+- `workloads` job gates on `images` succeeding before deploying Cloud Run Jobs
+
+Commit SHA and PR title/commit message propagate through all three workflows via `run-name` and `github.event.workflow_run.head_commit.message`.
 
 ---
 
