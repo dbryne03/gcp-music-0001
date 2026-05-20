@@ -90,7 +90,7 @@ gcloud run jobs update lastfm-consumer \
 echo "  [ok]  lastfm-consumer env + secrets"
 
 gcloud run jobs update dbt-runner \
-    --set-env-vars="DBT_PROFILES_DIR=/dbt" \
+    --set-env-vars="DBT_PROFILES_DIR=/dbt,GCP_PROJECT_ID=${PROJECT}" \
     --region="${REGION}" --project="${PROJECT}"
 echo "  [ok]  dbt-runner env"
 
