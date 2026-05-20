@@ -145,6 +145,6 @@ jobs:
         run: curl -sSL install.astronomer.io | sudo bash -s
 
       - name: Deploy to Astronomer
-        run: astro deploy --deployment-name ${{ env.ASTRONOMER_DEPLOYMENT }} --force --no-prompt
+        run: astro deploy --deployment-name ${{ env.ASTRONOMER_DEPLOYMENT }} --force
         env:
           ASTRONOMER_API_TOKEN: ${{ secrets.ASTRONOMER_API_TOKEN }}
