@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../vars.sh"
+set -a; source "${SCRIPT_DIR}/../config.env"; set +a
 
 SCHEMAS_DIR="${SCRIPT_DIR}/../schemas"
 
