@@ -1,7 +1,3 @@
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent))
-
 from airflow import DAG
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 

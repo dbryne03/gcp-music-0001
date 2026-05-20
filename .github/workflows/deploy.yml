@@ -153,6 +153,7 @@ jobs:
           attempt=0
           until astro deploy "${ASTRONOMER_DEPLOYMENT_ID}" \
                 --workspace-id "${ASTRONOMER_WORKSPACE_ID}" \
+                --no-dags-base-dir \
                 --force; do
             attempt=$((attempt + 1))
             if [ $attempt -ge 3 ]; then
