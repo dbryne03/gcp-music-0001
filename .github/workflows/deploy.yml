@@ -147,6 +147,7 @@ jobs:
         uses: astronomer/deploy-action@v0.13.0
         with:
           deployment-id: ${{ env.ASTRONOMER_DEPLOYMENT_ID }}
+          workspace: ${{ env.ASTRONOMER_WORKSPACE_ID }}
           deploy-type: image-and-dags
           force: true
         env:
