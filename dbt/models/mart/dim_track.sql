@@ -25,7 +25,7 @@ with source as (
     from {{ ref('int_track_enriched') }}
     qualify row_number() over (
         partition by track_id
-        order by popularity desc
+        order by popularity desc, track_id
     ) = 1
 ),
 

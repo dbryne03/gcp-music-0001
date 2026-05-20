@@ -2,7 +2,10 @@ version: 2
 
 models:
   - name: dim_artist
-    description: Canonical artist dimension — MusicBrainz as primary source, enriched with Last.fm data
+    description: >
+      Canonical artist dimension. One row per artist_name, surrogate-keyed
+      on artist_name. MusicBrainz is the primary source of metadata;
+      Last.fm-only artists appear with null MusicBrainz columns.
     columns:
       - name: artist_key
         description: Surrogate key on artist_name — always unique after qualify deduplication
@@ -11,4 +14,17 @@ models:
         description: MusicBrainz ID — nullable for artists unresolved by MBID or name match
         tests: [unique]
       - name: artist_name
+        tests: [not_null]
+      - name: sort_name
+        description: Inverted name for alphabetical sorting — null for unresolved artists
+      - name: country
+        description: ISO 3166-1 alpha-2 country code — null if unknown
+      - name: artist_type
+        description: Person, Group, Orchestra, Choir, Character, or Other — null if unresolved
+      - name: begin_date
+        description: Date of birth or group formation — null if unknown
+      - name: end_date
+        description: Date of death or dissolution — null if still active or unknown
+      - name: is_mb_verified
+        description: True when MusicBrainz metadata was found via MBID or name match
         tests: [not_null]

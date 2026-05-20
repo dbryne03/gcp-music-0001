@@ -8,14 +8,20 @@ models:
       for full artist metadata including MusicBrainz attributes.
     columns:
       - name: chart_position_key
+        description: Surrogate key on stg_lastfm_charts.chart_key (artist_name + chart_week)
         tests: [unique, not_null]
       - name: artist_key
+        description: Foreign key to dim_artist
         tests: [not_null]
+      - name: artist_mbid
+        description: MusicBrainz ID from the source chart record — nullable
       - name: artist_name
         tests: [not_null]
       - name: chart_week
+        description: ISO date of the Monday that opened this chart week
         tests: [not_null]
       - name: rank
+        description: Chart position — lower is higher ranked
         tests:
           - not_null
           - dbt_utils.accepted_range:

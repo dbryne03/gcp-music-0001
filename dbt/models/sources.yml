@@ -6,8 +6,22 @@ sources:
     schema: raw
     tables:
       - name: lastfm
-        description: Last.fm chart and artist data loaded from Kafka consumer
+        description: Last.fm chart records loaded from the Kafka consumer NDJSON files
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after:  { count: 32, period: day }
+          error_after: { count: 35, period: day }
+
       - name: mb_dump
-        description: MusicBrainz JSON dump — artists, recordings, releases, genres
+        description: MusicBrainz artist dump — filtered to pipeline fields
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after:  { count: 32, period: day }
+          error_after: { count: 35, period: day }
+
       - name: spotify
         description: Spotify tracks dataset — audio features per track
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after:  { count: 32, period: day }
+          error_after: { count: 35, period: day }

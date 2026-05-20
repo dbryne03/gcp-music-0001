@@ -3,15 +3,28 @@ version: 2
 models:
   - name: int_artist_resolution
     description: >
-      Resolved artist identities across Last.fm and MusicBrainz. Resolution
-      is attempted first by MBID (high confidence), then by normalised name
-      (lowercase, punctuation stripped) as a fallback for the ~30% of Last.fm
-      charting artists who carry no MBID. is_mb_verified distinguishes the
-      two resolution paths.
+      Resolved artist identities across Last.fm and MusicBrainz. One row per
+      unique artist_name after qualify deduplication. Resolution is attempted
+      first by MBID (high confidence), then by normalised name (lowercase,
+      punctuation stripped) as a fallback for the ~30% of Last.fm charting
+      artists who carry no MBID. is_mb_verified distinguishes both paths.
     columns:
       - name: artist_mbid
+        description: MusicBrainz ID — canonical key; nullable only when no MBID or name match found
         tests: [unique, not_null]
       - name: artist_name
+        description: Artist display name — always non-null, used as the deduplication key
         tests: [not_null]
+      - name: sort_name
+        description: MusicBrainz sort name (e.g. "Astley, Rick") — null for unresolved artists
+      - name: country
+        description: ISO 3166-1 alpha-2 country code from MusicBrainz — null if unknown
+      - name: artist_type
+        description: MusicBrainz artist type — Person, Group, Orchestra, Choir, Character, or Other
+      - name: begin_date
+        description: Date of birth or group formation from MusicBrainz — null if unknown
+      - name: end_date
+        description: Date of death or dissolution from MusicBrainz — null if still active or unknown
       - name: is_mb_verified
+        description: True when MusicBrainz metadata was found via MBID or name match
         tests: [not_null]
