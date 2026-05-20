@@ -14,10 +14,14 @@ concurrency:
 permissions:
   contents: read
 
+# Primary constants — single source of truth.
+# Top-level and job-level env blocks only support github.* and inputs.*
+# contexts, so derived values (e.g. REGISTRY) are set via $GITHUB_ENV
+# in the relevant job's first step and referenced as ${{ env.REGISTRY }}
+# by subsequent steps.
 env:
   PROJECT_ID: portfolio-hub-2026
   REGION: europe-west2
-  REGISTRY: europe-west2-docker.pkg.dev/portfolio-hub-2026/music-pipeline
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
@@ -28,8 +32,6 @@ jobs:
     name: Validate / dbt parse
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    env:
-      GCP_PROJECT_ID: portfolio-hub-2026
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,7 +54,7 @@ jobs:
               ci:
                 type: bigquery
                 method: oauth
-                project: portfolio-hub-2026
+                project: ${{ env.PROJECT_ID }}
                 dataset: raw
                 threads: 1
           EOF
@@ -63,6 +65,8 @@ jobs:
 
       - name: Parse dbt project
         working-directory: dbt
+        env:
+          GCP_PROJECT_ID: ${{ env.PROJECT_ID }}
         run: dbt parse
 
   validate-docker:
@@ -99,6 +103,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set derived variables
+        run: |
+          echo "REGISTRY=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/music-pipeline" >> $GITHUB_ENV
+
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
@@ -110,7 +118,7 @@ jobs:
       - name: Build and push extractor images
         run: |
           for SERVICE in lastfm musicbrainz spotify; do
-            IMAGE="${{ env.REGISTRY }}/${SERVICE}-extractor"
+            IMAGE="${REGISTRY}/${SERVICE}-extractor"
             docker build extractors/${SERVICE} \
               --tag "${IMAGE}:${{ github.sha }}" \
               --tag "${IMAGE}:latest" \
