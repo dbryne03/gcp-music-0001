@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Bootstrap GCP resources for gcp-music-0001.
-# Idempotent: checks existence before creating. Safe to re-run at any time.
-# add-iam-policy-binding calls are inherently idempotent — no pre-check needed.
+# Idempotent GCP resource bootstrap for gcp-music-0001.
+# GitHub Actions SA required roles: serviceusage.serviceUsageAdmin,
+# storage.admin, bigquery.admin, artifactregistry.admin,
+# secretmanager.admin, iam.serviceAccountAdmin,
+# resourcemanager.projectIamAdmin, run.admin.
 set -euo pipefail
 
 PROJECT="portfolio-hub-2026"
@@ -24,11 +26,6 @@ gcloud services enable \
     --project="${PROJECT}"
 
 echo "  [ok]  all required APIs enabled"
-
-# Note: the GitHub Actions service account is created and managed manually.
-# It requires: serviceusage.serviceUsageAdmin, storage.admin, bigquery.admin,
-# artifactregistry.admin, secretmanager.admin, iam.serviceAccountAdmin,
-# resourcemanager.projectIamAdmin, run.admin.
 
 # ── Storage ───────────────────────────────────────────────────────────────────
 
@@ -101,7 +98,6 @@ done
 
 echo "=== Service Accounts ==="
 
-# Cloud Run Jobs SA — used by all extractors, consumer job, and dbt runner
 if gcloud iam service-accounts describe "${CLOUDRUN_SA}" \
         --project="${PROJECT}" &>/dev/null 2>&1; then
     echo "  [exists]  music-cloudrun-sa"
@@ -112,7 +108,6 @@ else
         --display-name="Music Pipeline — Cloud Run Jobs"
 fi
 
-# Airflow SA — used by Astronomer Cloud to trigger jobs and read GCS
 if gcloud iam service-accounts describe "${AIRFLOW_SA}" \
         --project="${PROJECT}" &>/dev/null 2>&1; then
     echo "  [exists]  music-airflow-sa"
@@ -127,14 +122,12 @@ fi
 
 echo "=== IAM ==="
 
-# Cloud Run SA — GCS: read and write objects (extractors stage files here)
 gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
     --project="${PROJECT}" \
     --member="serviceAccount:${CLOUDRUN_SA}" \
     --role="roles/storage.objectAdmin"
 echo "  [ok]  cloudrun-sa → storage.objectAdmin on ${BUCKET}"
 
-# Cloud Run SA — BigQuery: write to tables and run load/dbt jobs
 gcloud projects add-iam-policy-binding "${PROJECT}" \
     --member="serviceAccount:${CLOUDRUN_SA}" \
     --role="roles/bigquery.dataEditor" \
@@ -147,7 +140,6 @@ gcloud projects add-iam-policy-binding "${PROJECT}" \
     --condition=None
 echo "  [ok]  cloudrun-sa → bigquery.jobUser"
 
-# Cloud Run SA — Secret Manager: read secret values at runtime
 for SECRET in lastfm-api-key kafka-bootstrap-servers kafka-api-key kafka-api-secret; do
     gcloud secrets add-iam-policy-binding "${SECRET}" \
         --project="${PROJECT}" \
@@ -156,14 +148,12 @@ for SECRET in lastfm-api-key kafka-bootstrap-servers kafka-api-key kafka-api-sec
 done
 echo "  [ok]  cloudrun-sa → secretmanager.secretAccessor on all secrets"
 
-# Airflow SA — Cloud Run: trigger extractor and dbt jobs
 gcloud projects add-iam-policy-binding "${PROJECT}" \
     --member="serviceAccount:${AIRFLOW_SA}" \
     --role="roles/run.invoker" \
     --condition=None
 echo "  [ok]  airflow-sa → run.invoker"
 
-# Airflow SA — GCS: check object existence for GCS sensors
 gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
     --project="${PROJECT}" \
     --member="serviceAccount:${AIRFLOW_SA}" \
@@ -171,9 +161,8 @@ gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
 echo "  [ok]  airflow-sa → storage.objectViewer on ${BUCKET}"
 
 # ── Cloud Run Jobs ────────────────────────────────────────────────────────────
-# TODO: add job definitions once Docker images are built and pushed:
-#   lastfm-extractor, lastfm-consumer, musicbrainz-extractor,
-#   spotify-extractor, dbt-runner
+# TODO: lastfm-extractor, lastfm-consumer, musicbrainz-extractor,
+#       spotify-extractor, dbt-runner
 
 echo ""
 echo "Bootstrap complete."

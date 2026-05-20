@@ -14,11 +14,6 @@ concurrency:
 permissions:
   contents: read
 
-# Primary constants — single source of truth.
-# Top-level and job-level env blocks only support github.* and inputs.*
-# contexts, so derived values (e.g. REGISTRY) are set via $GITHUB_ENV
-# in the relevant job's first step and referenced as ${{ env.REGISTRY }}
-# by subsequent steps.
 env:
   PROJECT_ID: portfolio-hub-2026
   REGION: europe-west2
