@@ -198,6 +198,15 @@ gcloud projects add-iam-policy-binding "${PROJECT}" \
     --condition=None
 echo "  [ok]  airflow-sa → bigquery.dataEditor"
 
+# GitHub Actions SA — actAs on the Cloud Run SA so it can create jobs
+# that specify music-cloudrun-sa as the runtime service account
+GITHUB_SA="github-actions-sa@${PROJECT}.iam.gserviceaccount.com"
+gcloud iam service-accounts add-iam-policy-binding "${CLOUDRUN_SA}" \
+    --member="serviceAccount:${GITHUB_SA}" \
+    --role="roles/iam.serviceAccountUser" \
+    --project="${PROJECT}"
+echo "  [ok]  github-actions-sa → serviceAccountUser on music-cloudrun-sa"
+
 # ── Cloud Run Jobs ────────────────────────────────────────────────────────────
 
 echo "=== Cloud Run Jobs ==="
