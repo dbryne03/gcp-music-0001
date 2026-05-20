@@ -1,7 +1,7 @@
 # infra
 
 GCP infrastructure for `gcp-music-0001`. All scripts are idempotent and
-managed by GitHub Actions — see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
+managed by GitHub Actions — see [`.github/workflows/`](../.github/workflows/)
 for execution order.
 
 ---
@@ -41,6 +41,7 @@ resource name, update `config.env` — no changes to individual scripts needed.
 | `CLOUDRUN_SA` | `music-cloudrun-sa@portfolio-hub-2026.iam.gserviceaccount.com` |
 | `AIRFLOW_SA` | `music-airflow-sa@portfolio-hub-2026.iam.gserviceaccount.com` |
 | `GITHUB_SA` | `github-actions-sa@portfolio-hub-2026.iam.gserviceaccount.com` |
+| `ASTRO_SA` | `astro-continuous-horizon-8866@astro-us-central1-0001.iam.gserviceaccount.com` |
 
 ---
 
