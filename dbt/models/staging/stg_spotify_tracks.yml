@@ -2,22 +2,100 @@ version: 2
 
 models:
   - name: stg_spotify_tracks
-    description: Conformed Spotify track audio features
+    description: >
+      Conformed Spotify track audio features sourced from the
+      maharshipandya/spotify-tracks-dataset HuggingFace dataset.
+      One row per track_id × track_genre combination (a track can appear
+      across multiple genres).
     columns:
       - name: track_id
-        tests: [unique, not_null]
+        description: Spotify track URI
+        tests: [not_null]
+      - name: track_name
+        tests: [not_null]
+      - name: artists
+        tests: [not_null]
+      - name: album_name
+      - name: track_genre
+        tests: [not_null]
+      - name: popularity
+        description: Spotify popularity score 0–100
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+      - name: duration_ms
+        tests: [not_null]
+      - name: explicit
+        tests: [not_null]
       - name: danceability
         tests:
+          - not_null
           - dbt_utils.accepted_range:
               min_value: 0
               max_value: 1
       - name: energy
         tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+      - name: key
+        description: Musical key 0–11 (C=0, C#=1 … B=11)
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 11
+      - name: loudness
+        description: Average loudness in dB, typically –60 to 0
+        tests: [not_null]
+      - name: mode
+        description: Major (1) or minor (0)
+        tests:
+          - not_null
+          - accepted_values:
+              values: [0, 1]
+      - name: speechiness
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+      - name: acousticness
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+      - name: instrumentalness
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+      - name: liveness
+        tests:
+          - not_null
           - dbt_utils.accepted_range:
               min_value: 0
               max_value: 1
       - name: valence
         tests:
+          - not_null
           - dbt_utils.accepted_range:
               min_value: 0
               max_value: 1
+      - name: tempo
+        description: Beats per minute
+        tests: [not_null]
+      - name: time_signature
+        description: Estimated time signature (beats per bar), typically 3–7
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 3
+              max_value: 7
+      - name: _ingested_at
+        tests: [not_null]
