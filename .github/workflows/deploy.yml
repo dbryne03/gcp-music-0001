@@ -23,6 +23,7 @@ permissions:
 env:
   PROJECT_ID: portfolio-hub-2026
   DOCKER_BUILDKIT: "1"
+  ASTRONOMER_DEPLOYMENT: gcp-music-0001
 
 jobs:
 
@@ -126,3 +127,24 @@ jobs:
           echo "## Cloud Run Jobs deployed" >> $GITHUB_STEP_SUMMARY
           echo "Image tag: \`${DEPLOY_SHA:0:7}\`" >> $GITHUB_STEP_SUMMARY
           echo "Environment: production" >> $GITHUB_STEP_SUMMARY
+
+  deploy-astronomer:
+    name: Deploy / Astronomer Airflow
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.sha || github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Install Astro CLI
+        run: curl -sSL install.astronomer.io | sudo bash -s
+
+      - name: Deploy to Astronomer
+        run: astro deploy --deployment-name ${{ env.ASTRONOMER_DEPLOYMENT }} --force --no-prompt
+        env:
+          ASTRONOMER_API_TOKEN: ${{ secrets.ASTRONOMER_API_TOKEN }}
