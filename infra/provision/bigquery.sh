@@ -3,7 +3,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 set -a; source "${SCRIPT_DIR}/../config.env"; set +a
 
-SCHEMAS_DIR="${SCRIPT_DIR}/../schemas"
+SCHEMAS_DIR="${SCRIPT_DIR}/../../dags/schemas"
 
 echo "=== BigQuery ==="
 
