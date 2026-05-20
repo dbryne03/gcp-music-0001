@@ -17,6 +17,7 @@ AIRFLOW_SA="music-airflow-sa@${PROJECT}.iam.gserviceaccount.com"
 echo "=== APIs ==="
 
 gcloud services enable \
+    cloudresourcemanager.googleapis.com \
     iam.googleapis.com \
     storage.googleapis.com \
     bigquery.googleapis.com \
