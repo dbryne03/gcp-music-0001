@@ -29,9 +29,50 @@ env:
 
 jobs:
 
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      extractors:  ${{ steps.filter.outputs.extractors }}
+      dbt:         ${{ steps.filter.outputs.dbt }}
+      dags:        ${{ steps.filter.outputs.dags }}
+      astro-image: ${{ steps.filter.outputs.astro-image }}
+      images:      ${{ steps.filter.outputs.images }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.sha || github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 2
+
+      - name: Filter paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            extractors:
+              - 'extractors/**'
+            dbt:
+              - 'dbt/**'
+            dags:
+              - 'dags/**'
+            astro-image:
+              - 'requirements.txt'
+              - 'Dockerfile'
+              - 'packages.txt'
+              - '.astro/**'
+            images:
+              - 'extractors/**'
+              - 'dbt/Dockerfile'
+              - 'dbt/requirements.txt'
+
   images:
     name: Deploy / Push images
-    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
+    needs: [changes]
+    if: |
+      (github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch') &&
+      (needs.changes.outputs.images == 'true' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -61,6 +102,7 @@ jobs:
           gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 
       - name: Build and push extractor images
+        if: needs.changes.outputs.extractors == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           declare -A IMAGES=(
             ["lastfm-producer"]="lastfm-producer"
@@ -81,6 +123,7 @@ jobs:
           done
 
       - name: Build and push dbt-runner image
+        if: needs.changes.outputs.dbt == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           IMAGE="${REGISTRY}/dbt-runner"
           docker build dbt \
@@ -132,7 +175,10 @@ jobs:
 
   deploy-astronomer:
     name: Deploy / Astronomer Airflow
-    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
+    needs: [changes]
+    if: |
+      (github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch') &&
+      (needs.changes.outputs.dags == 'true' || needs.changes.outputs.astro-image == 'true' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     permissions:
@@ -150,11 +196,20 @@ jobs:
         env:
           ASTRO_API_TOKEN: ${{ secrets.ASTRONOMER_API_TOKEN }}
         run: |
+          # Use dags-only (fast) when only DAG files changed; full image rebuild otherwise
+          if [[ "${{ needs.changes.outputs.astro-image }}" == "true" ]] || \
+             [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            DAGS_FLAG=""
+          else
+            DAGS_FLAG="--dags"
+          fi
+
           attempt=0
           until astro deploy "${ASTRONOMER_DEPLOYMENT_ID}" \
                 --workspace-id "${ASTRONOMER_WORKSPACE_ID}" \
                 --no-dags-base-dir \
-                --force; do
+                --force \
+                ${DAGS_FLAG}; do
             attempt=$((attempt + 1))
             if [ $attempt -ge 3 ]; then
               echo "Deploy failed after 3 attempts"

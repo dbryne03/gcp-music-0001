@@ -4,8 +4,16 @@ run-name: "${{ github.event.pull_request.title || github.event.head_commit.messa
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'TODO.md'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'TODO.md'
   workflow_dispatch:
 
 concurrency:
@@ -21,8 +29,43 @@ env:
 
 jobs:
 
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      dbt:        ${{ steps.filter.outputs.dbt }}
+      dags:       ${{ steps.filter.outputs.dags }}
+      extractors: ${{ steps.filter.outputs.extractors }}
+      images:     ${{ steps.filter.outputs.images }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Filter paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            dbt:
+              - 'dbt/**'
+            dags:
+              - 'dags/**'
+            extractors:
+              - 'extractors/**'
+            images:
+              - 'extractors/**'
+              - 'dbt/Dockerfile'
+              - 'dbt/requirements.txt'
+              - 'requirements.txt'
+              - 'Dockerfile'
+              - 'packages.txt'
+              - '.astro/**'
+
   dags:
     name: Validate / DAG syntax
+    needs: [changes]
+    if: needs.changes.outputs.dags == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -39,6 +82,8 @@ jobs:
 
   dbt:
     name: Validate / dbt parse
+    needs: [changes]
+    if: needs.changes.outputs.dbt == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -82,6 +127,8 @@ jobs:
 
   extractors:
     name: Test / ${{ matrix.service }} extractor
+    needs: [changes]
+    if: needs.changes.outputs.extractors == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     strategy:
@@ -109,6 +156,8 @@ jobs:
 
   docker:
     name: Validate / Docker build (${{ matrix.image }})
+    needs: [changes]
+    if: needs.changes.outputs.images == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
