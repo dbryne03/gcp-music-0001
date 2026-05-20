@@ -56,6 +56,11 @@ infra/
   lifecycle.json     GCS raw data retention policy (90 days)
   provision/         Idempotent GCP resource provisioning scripts
   deploy/            Cloud Run Job create/update scripts
+.astro/
+  config.yaml        Astro project identifier (required by astro deploy CLI)
+Dockerfile           Astro Runtime base image for Airflow environment
+packages.txt         OS packages for Astro Runtime (empty — none required)
+requirements.txt     Airflow provider packages installed into Astronomer image
 .github/
   workflows/         CI/CD — validate, infra, deploy
 ```
