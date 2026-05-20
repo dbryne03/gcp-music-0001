@@ -236,16 +236,16 @@ flowchart TD
 - `stg_mb_artists` — maps confirmed dump fields; parses `begin_date`/`end_date` strings via `safe.parse_date`; `artist_type` validated with `accepted_values`
 - `stg_spotify_tracks` — full confirmed schema from HuggingFace dataset inspection; range tests on all 0–1 audio features, `popularity` 0–100, `key` 0–11, `mode` accepted_values [0, 1]
 
-**Intermediate** — logic pending
+**Intermediate** — fully implemented
 
-- `int_artist_resolution` — joins Last.fm and MusicBrainz on MBID; `is_mb_verified` flag set. Name-normalisation fallback for records without MBID is not yet implemented.
-- `int_track_enriched` — joins Last.fm chart records with Spotify tracks on normalised artist + track name. Matching logic not yet implemented.
+- `int_artist_resolution` — MBID join is the primary resolution path. For artists without an MBID, a second left join on normalised name (`lower(regexp_replace(trim(name), r'[^a-z0-9 ]', ''))`) fires as a fallback. `qualify row_number()` deduplicates cases where a single normalised name maps to multiple MusicBrainz records. `is_mb_verified` distinguishes both paths.
+- `int_track_enriched` — joins Spotify tracks to Last.fm charting artists via `contains_substr()` on normalised artist name against the Spotify `artists` field. One row per Spotify track per matched chart artist; `dim_track` deduplicates on `track_id`.
 
-**Mart**
+**Mart** — fully implemented
 
 - `dim_artist` — one row per artist, MBID as natural key, surrogate `artist_key`
-- `dim_track` — one row per track, `track_key` surrogate
-- `fact_chart_position` — one row per artist × chart week; `track_key` join deferred until `int_track_enriched` matching is complete
+- `dim_track` — one row per `track_id`, full Spotify audio feature set. Deduplicates `int_track_enriched` on `track_id`, taking the highest-popularity row
+- `fact_chart_position` — one row per artist × chart week; grain is artist × `chart_week`. Audio feature analysis is available via `dim_artist → dim_track` through `int_track_enriched` — adding `track_key` to this fact would break the grain
 
 ---
 
@@ -352,9 +352,6 @@ GitHub Actions (`.github/workflows/ci.yml`).
 
 | Area | Item |
 |:---|:---|
-| dbt | `int_artist_resolution` — name-normalisation fallback for artists without MBID |
-| dbt | `int_track_enriched` — track matching logic (normalised artist + track name join) |
-| dbt | `fact_chart_position` — wire `track_key` once `int_track_enriched` is complete |
 | Infra | `dbt-runner` Cloud Run Job — requires a dedicated dbt Docker image |
 | Infra | GCS lifecycle rules for raw data retention |
 | Manual | Populate Last.fm API key in Secret Manager |
