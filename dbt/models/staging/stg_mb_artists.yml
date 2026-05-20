@@ -2,9 +2,35 @@ version: 2
 
 models:
   - name: stg_mb_artists
-    description: Conformed MusicBrainz artist records
+    description: >
+      Conformed MusicBrainz artist records sourced from the monthly JSON dump
+      (artist.tar.xz). Fields are filtered and normalised in the extractor;
+      dates are parsed from ISO-8601 strings.
     columns:
       - name: artist_mbid
+        description: MusicBrainz identifier — canonical cross-source key
         tests: [unique, not_null]
       - name: artist_name
+        tests: [not_null]
+      - name: sort_name
+        description: Inverted name used for alphabetical sorting (e.g. "Astley, Rick")
+        tests: [not_null]
+      - name: country
+        description: ISO 3166-1 alpha-2 country code — null for groups with no fixed country
+      - name: artist_type
+        description: "Person, Group, Orchestra, Choir, Character, or Other"
+        tests:
+          - accepted_values:
+              values: [Person, Group, Orchestra, Choir, Character, Other]
+              quote: true
+      - name: begin_date
+        description: Date of birth / group formation — null if unknown
+      - name: end_date
+        description: Date of death / group dissolution — null if still active or unknown
+      - name: ended
+        description: True if the artist or group is no longer active
+        tests: [not_null]
+      - name: genres
+        description: List of community-voted genre names from MusicBrainz
+      - name: _ingested_at
         tests: [not_null]
