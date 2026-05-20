@@ -80,3 +80,10 @@ gcloud iam service-accounts add-iam-policy-binding "${CLOUDRUN_SA}" \
     --role="roles/iam.serviceAccountUser" \
     --project="${PROJECT}"
 echo "  [ok]  github-actions-sa → serviceAccountUser on music-cloudrun-sa"
+
+# Astronomer workload identity — impersonate airflow-sa for GCS/BQ connections
+gcloud iam service-accounts add-iam-policy-binding "${AIRFLOW_SA}" \
+    --member="serviceAccount:${ASTRO_SA}" \
+    --role="roles/iam.serviceAccountTokenCreator" \
+    --project="${PROJECT}"
+echo "  [ok]  astro-sa → serviceAccountTokenCreator on music-airflow-sa"
