@@ -6,8 +6,16 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  PROJECT_ID: portfolio-hub-2026
+  REGION: europe-west2
+  REGISTRY: europe-west2-docker.pkg.dev/portfolio-hub-2026/music-pipeline
+
 jobs:
-  dbt-test:
+
+  # ── Validate (PRs and main) ───────────────────────────────────────────────────
+
+  dbt-compile:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,23 +31,64 @@ jobs:
         working-directory: dbt
         run: dbt compile
         env:
-          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_PROJECT_ID: ${{ env.PROJECT_ID }}
 
-  infra-preview:
+  docker-build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [lastfm, musicbrainz, spotify]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Build ${{ matrix.service }} extractor
+        run: |
+          docker build extractors/${{ matrix.service }} \
+            -t ${{ matrix.service }}-extractor:ci
+
+  # ── Deploy (main only) ────────────────────────────────────────────────────────
+
+  docker-push:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [dbt-compile, docker-build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
         with:
-          node-version: "22"
-      - name: Install Pulumi deps
-        working-directory: infra
-        run: npm install
-      - uses: pulumi/actions@v5
+          credentials_json: ${{ secrets.SERVICE_ACCOUNT }}
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+      - name: Build and push extractor images
+        run: |
+          for SERVICE in lastfm musicbrainz spotify; do
+            IMAGE="${{ env.REGISTRY }}/${SERVICE}-extractor"
+            docker build extractors/${SERVICE} \
+              -t "${IMAGE}:${{ github.sha }}" \
+              -t "${IMAGE}:latest"
+            docker push "${IMAGE}:${{ github.sha }}"
+            docker push "${IMAGE}:latest"
+          done
+
+  infra-apply:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [dbt-compile]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
         with:
-          command: preview
-          stack-name: prod
-          work-dir: infra
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          GOOGLE_CREDENTIALS: ${{ secrets.GCP_SA_KEY }}
+          credentials_json: ${{ secrets.SERVICE_ACCOUNT }}
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+      - name: Bootstrap GCP resources
+        run: bash infra/bootstrap.sh

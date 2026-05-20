@@ -24,7 +24,7 @@ A Technical Design Document is available on request at [davidbryneadedeji.com](h
 | Transformation | dbt Core |
 | Orchestration | Astronomer Cloud (managed Airflow) |
 | Reporting | Looker Studio, Google Sheets |
-| IaC | Pulumi (TypeScript) |
+| IaC | gcloud CLI (Shell) |
 | CI/CD | GitHub Actions |
 
 ## Structure
@@ -40,7 +40,7 @@ dbt/
     intermediate/ Artist resolution, track enrichment
     mart/        dim_artist, dim_track, fact_chart_position
 dags/            Astronomer Cloud Airflow DAG
-infra/           Pulumi TypeScript — GCP infrastructure
+infra/           Shell bootstrap — idempotent gcloud resource provisioning
 .github/
   workflows/     CI/CD
 ```
