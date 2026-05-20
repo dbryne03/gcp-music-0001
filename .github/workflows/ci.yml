@@ -5,6 +5,14 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 env:
   PROJECT_ID: portfolio-hub-2026
@@ -14,18 +22,25 @@ env:
 
 jobs:
 
-  # ── Validate (PRs and main) ───────────────────────────────────────────────────
+  # ── Validate ──────────────────────────────────────────────────────────────────
 
-  dbt-compile:
+  validate-dbt:
+    name: Validate / dbt parse
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install dbt
+
+      - name: Install dbt-bigquery
         run: pip install dbt-bigquery
-      - name: Create CI dbt profile
+
+      - name: Write CI dbt profile
         run: |
           mkdir -p ~/.dbt
           cat > ~/.dbt/profiles.yml << 'EOF'
@@ -39,69 +54,92 @@ jobs:
                 dataset: raw
                 threads: 1
           EOF
-      - name: dbt deps
+
+      - name: Install dbt packages
         working-directory: dbt
         run: dbt deps
-      - name: dbt parse
+
+      - name: Parse dbt project
         working-directory: dbt
         run: dbt parse
 
-  docker-build:
+  validate-docker:
+    name: Validate / Docker build (${{ matrix.service }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
+      fail-fast: false
       matrix:
         service: [lastfm, musicbrainz, spotify]
     steps:
-      - uses: actions/checkout@v4
-      - name: Build ${{ matrix.service }} extractor
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build ${{ matrix.service }} extractor image
         run: |
           docker build extractors/${{ matrix.service }} \
-            -t ${{ matrix.service }}-extractor:ci
+            --tag ${{ matrix.service }}-extractor:ci \
+            --label "git.sha=${{ github.sha }}"
 
-  # ── Deploy (main only) ────────────────────────────────────────────────────────
+  # ── Deploy ────────────────────────────────────────────────────────────────────
 
-  docker-push:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [dbt-compile, docker-build]
+  deploy-images:
+    name: Deploy / Push extractor images
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [validate-dbt, validate-docker]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       id-token: write
+    environment: production
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.SERVICE_ACCOUNT }}
+
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
       - name: Build and push extractor images
         run: |
           for SERVICE in lastfm musicbrainz spotify; do
             IMAGE="${{ env.REGISTRY }}/${SERVICE}-extractor"
             docker build extractors/${SERVICE} \
-              -t "${IMAGE}:${{ github.sha }}" \
-              -t "${IMAGE}:latest"
+              --tag "${IMAGE}:${{ github.sha }}" \
+              --tag "${IMAGE}:latest" \
+              --label "git.sha=${{ github.sha }}"
             docker push "${IMAGE}:${{ github.sha }}"
             docker push "${IMAGE}:latest"
           done
 
-  infra-apply:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [dbt-compile]
+  deploy-infra:
+    name: Deploy / Bootstrap infrastructure
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [validate-dbt]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       id-token: write
+    environment: production
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.SERVICE_ACCOUNT }}
-      - name: Set up gcloud
+
+      - name: Set up gcloud CLI
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.PROJECT_ID }}
+
       - name: Bootstrap GCP resources
         run: bash infra/bootstrap.sh
