@@ -136,9 +136,15 @@ jobs:
 
       - name: Build and push extractor images
         run: |
-          for SERVICE in lastfm-producer lastfm-consumer musicbrainz spotify; do
-            IMAGE="${REGISTRY}/${SERVICE}-extractor"
-            docker build extractors/${SERVICE} \
+          declare -A IMAGES=(
+            ["lastfm-producer"]="lastfm-producer"
+            ["lastfm-consumer"]="lastfm-consumer"
+            ["musicbrainz"]="musicbrainz-extractor"
+            ["spotify"]="spotify-extractor"
+          )
+          for DIR in "${!IMAGES[@]}"; do
+            IMAGE="${REGISTRY}/${IMAGES[$DIR]}"
+            docker build "extractors/${DIR}" \
               --tag "${IMAGE}:${{ github.sha }}" \
               --tag "${IMAGE}:latest" \
               --label "git.sha=${{ github.sha }}"

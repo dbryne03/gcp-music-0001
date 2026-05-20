@@ -185,9 +185,50 @@ gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
     --role="roles/storage.objectViewer"
 echo "  [ok]  airflow-sa → storage.objectViewer on ${BUCKET}"
 
+# Airflow SA — BigQuery: GCSToBigQueryOperator runs load jobs under the Airflow SA
+gcloud projects add-iam-policy-binding "${PROJECT}" \
+    --member="serviceAccount:${AIRFLOW_SA}" \
+    --role="roles/bigquery.jobUser" \
+    --condition=None
+echo "  [ok]  airflow-sa → bigquery.jobUser"
+
+gcloud projects add-iam-policy-binding "${PROJECT}" \
+    --member="serviceAccount:${AIRFLOW_SA}" \
+    --role="roles/bigquery.dataEditor" \
+    --condition=None
+echo "  [ok]  airflow-sa → bigquery.dataEditor"
+
 # ── Cloud Run Jobs ────────────────────────────────────────────────────────────
-# TODO: lastfm-producer, lastfm-consumer, musicbrainz-extractor,
-#       spotify-extractor, dbt-runner
+
+echo "=== Cloud Run Jobs ==="
+
+REGISTRY="${REGION}-docker.pkg.dev/${PROJECT}/music-pipeline"
+
+declare -A JOBS=(
+    ["lastfm-producer"]="${REGISTRY}/lastfm-producer:latest"
+    ["lastfm-consumer"]="${REGISTRY}/lastfm-consumer:latest"
+    ["musicbrainz-extractor"]="${REGISTRY}/musicbrainz-extractor:latest"
+    ["spotify-extractor"]="${REGISTRY}/spotify-extractor:latest"
+)
+
+for JOB_NAME in "${!JOBS[@]}"; do
+    IMAGE="${JOBS[$JOB_NAME]}"
+    if gcloud run jobs describe "${JOB_NAME}" \
+            --project="${PROJECT}" --region="${REGION}" &>/dev/null 2>&1; then
+        echo "  [exists]  ${JOB_NAME}"
+    else
+        echo "  [create]  ${JOB_NAME}"
+        gcloud run jobs create "${JOB_NAME}" \
+            --image="${IMAGE}" \
+            --region="${REGION}" \
+            --project="${PROJECT}" \
+            --service-account="${CLOUDRUN_SA}" \
+            --max-retries=1 \
+            --task-timeout=3600
+    fi
+done
+
+# TODO: dbt-runner — requires a dedicated dbt Docker image (not yet in CI)
 
 echo ""
 echo "Bootstrap complete."
