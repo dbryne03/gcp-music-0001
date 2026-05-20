@@ -2,7 +2,7 @@
 # Creates service accounts and applies all IAM bindings.
 # add-iam-policy-binding calls are idempotent — no pre-check needed.
 set -euo pipefail
-source "$(dirname "${BASH_SOURCE[0]}")/vars.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../vars.sh"
 
 echo "=== Service Accounts ==="
 

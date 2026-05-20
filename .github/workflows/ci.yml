@@ -194,7 +194,7 @@ jobs:
       - name: Deploy Cloud Run Jobs
         env:
           DEPLOY_SHA: ${{ github.sha }}
-        run: bash infra/deploy-jobs.sh
+        run: bash infra/deploy/jobs.sh
 
   deploy-infra:
     name: Deploy / Provision infrastructure
@@ -221,19 +221,19 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
 
       - name: Enable GCP APIs
-        run: bash infra/provision-apis.sh
+        run: bash infra/provision/apis.sh
 
       - name: Provision storage
-        run: bash infra/provision-storage.sh
+        run: bash infra/provision/storage.sh
 
       - name: Provision BigQuery
-        run: bash infra/provision-bigquery.sh
+        run: bash infra/provision/bigquery.sh
 
       - name: Provision Artifact Registry
-        run: bash infra/provision-registry.sh
+        run: bash infra/provision/registry.sh
 
       - name: Provision Secret Manager
-        run: bash infra/provision-secrets.sh
+        run: bash infra/provision/secrets.sh
 
       - name: Provision IAM
-        run: bash infra/provision-iam.sh
+        run: bash infra/provision/iam.sh

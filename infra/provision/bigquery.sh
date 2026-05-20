@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/vars.sh"
+source "${SCRIPT_DIR}/../vars.sh"
 
-SCHEMAS_DIR="${SCRIPT_DIR}/schemas"
+SCHEMAS_DIR="${SCRIPT_DIR}/../schemas"
 
 echo "=== BigQuery ==="
 

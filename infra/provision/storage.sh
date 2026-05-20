@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/vars.sh"
+source "${SCRIPT_DIR}/../vars.sh"
 
 echo "=== Storage ==="
 
@@ -18,6 +18,6 @@ fi
 echo "=== GCS Lifecycle ==="
 
 gcloud storage buckets update "gs://${BUCKET}" \
-    --lifecycle-file="${SCRIPT_DIR}/lifecycle.json" \
+    --lifecycle-file="${SCRIPT_DIR}/../lifecycle.json" \
     --project="${PROJECT}"
 echo "  [ok]  lifecycle rules applied to ${BUCKET}"

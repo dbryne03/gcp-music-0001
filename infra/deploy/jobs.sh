@@ -4,7 +4,7 @@
 # Requires DEPLOY_SHA env var (set by CI to the triggering commit SHA).
 # Falls back to 'latest' when run manually without DEPLOY_SHA set.
 set -euo pipefail
-source "$(dirname "${BASH_SOURCE[0]}")/vars.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../vars.sh"
 
 TAG="${DEPLOY_SHA:-latest}"
 
