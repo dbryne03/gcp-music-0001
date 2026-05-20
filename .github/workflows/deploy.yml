@@ -25,6 +25,7 @@ env:
   DOCKER_BUILDKIT: "1"
   ASTRONOMER_DEPLOYMENT: gcp-music-0001
   ASTRONOMER_WORKSPACE_ID: cmpdm5q660la201h638qilvei
+  ASTRONOMER_DEPLOYMENT_ID: cmpe9klbe1ai101jrkez3qkpo
 
 jobs:
 
@@ -145,7 +146,7 @@ jobs:
       - name: Deploy to Astronomer
         uses: astronomer/deploy-action@v0.13.0
         with:
-          deployment-name: ${{ env.ASTRONOMER_DEPLOYMENT }}
+          deployment-id: ${{ env.ASTRONOMER_DEPLOYMENT_ID }}
           deploy-type: image-and-dags
           force: true
         env:
