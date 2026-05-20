@@ -10,6 +10,21 @@ BUCKET="${PROJECT}-music-raw"
 CLOUDRUN_SA="music-cloudrun-sa@${PROJECT}.iam.gserviceaccount.com"
 AIRFLOW_SA="music-airflow-sa@${PROJECT}.iam.gserviceaccount.com"
 
+# ── APIs ──────────────────────────────────────────────────────────────────────
+
+echo "=== APIs ==="
+
+gcloud services enable \
+    iam.googleapis.com \
+    storage.googleapis.com \
+    bigquery.googleapis.com \
+    artifactregistry.googleapis.com \
+    secretmanager.googleapis.com \
+    run.googleapis.com \
+    --project="${PROJECT}"
+
+echo "  [ok]  all required APIs enabled"
+
 # Note: the GitHub Actions service account is created and managed manually.
 # It requires: artifactregistry.writer, storage.admin, bigquery.admin,
 # secretmanager.admin, iam.serviceAccountAdmin, run.admin.
