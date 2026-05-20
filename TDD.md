@@ -8,7 +8,7 @@
 
 ## 1. Overview
 
-A monthly music intelligence pipeline that ingests chart, artist, and track data from three external sources, unifies them in BigQuery via dbt, and surfaces insights through Looker Studio and Google Sheets. The pipeline runs on the first of each month, orchestrated by Airflow on Astronomer Cloud, with all infrastructure provisioned on GCP via Pulumi.
+A monthly music intelligence pipeline that ingests chart, artist, and track data from three external sources, unifies them in BigQuery via dbt, and surfaces insights through Looker Studio and Google Sheets. The pipeline runs on the first of each month, orchestrated by Airflow on Astronomer Cloud, with all infrastructure provisioned on GCP via an idempotent gcloud CLI bootstrap script.
 
 The central analytical question: **which artists and tracks are dominating charts, and what do we know about them?**
 
@@ -80,7 +80,7 @@ flowchart LR
 
     subgraph BQR["BigQuery — raw dataset"]
         BQLASTFM["raw.lastfm"]
-        BQMB["raw.musicbrainz"]
+        BQMB["raw.mb_dump"]
         BQSP["raw.spotify"]
     end
 
@@ -149,60 +149,56 @@ flowchart LR
 
 | Source | Type | Cadence | Volume |
 |:---|:---|:---|:---|
-| Last.fm `chart.getTopArtists` | REST API | Monthly run, weekly chart pages | ~50 artists × weeks-in-month |
-| MusicBrainz artist dump | Batch file download (`mbdump-artist.tar.bz2`) | Monthly | ~2M artist records |
-| Spotify tracks dataset | HuggingFace Parquet (`maharshipandya/spotify-tracks-dataset`) | Monthly snapshot | ~114k tracks |
+| Last.fm `chart.getTopArtists` | REST API | Monthly run, paginated | ~50 artists/page, all pages |
+| MusicBrainz artist dump | Batch download (`artist.tar.xz`) | Monthly | ~2M artist records, 2 GB compressed |
+| Spotify tracks dataset | HuggingFace Parquet (`maharshipandya/spotify-tracks-dataset`) | Monthly snapshot | ~114k tracks, 13.6 MB |
 
 ---
 
 ### 5.3 Extraction layer
 
-Three independent Cloud Run Jobs, one per source. Each job is stateless, runs to completion, and exits — no long-running processes.
+Four Cloud Run Jobs — stateless, run to completion, scale to zero.
 
-**Last.fm extractor** (`extractors/lastfm/`)
+**`lastfm-producer`** (`extractors/lastfm-producer/`)
 
-Calls `chart.getTopArtists` with pagination. Each page is an `ArtistChart` Pydantic record:
+Paginates `chart.getTopArtists` at 0.2 s per page (5 req/s limit). Each artist is validated as an `ArtistChart` Pydantic record and produced to the `lastfm.charts` Kafka topic on Confluent Cloud. Empty MBIDs from the API are normalised to `None`. Delivery errors are surfaced via the on_delivery callback and raised after `flush()` so no failures are silently swallowed.
 
-```
-artist_mbid | artist_name | chart_week | rank | listeners | playcount
-```
+**`lastfm-consumer`** (`extractors/lastfm-consumer/`)
 
-Records are serialised to JSON and produced to a Confluent Cloud Kafka topic (`lastfm.charts`). A separate consumer job (`lastfm-consumer`) drains the topic and writes NDJSON files to GCS `raw/api/lastfm/`. This decouples the API call rate from the GCS write and allows replay if the consumer fails.
+Drains the `lastfm.charts` topic using a 30-second silence window (6 × 5 s empty polls). Stamps a single `_ingested_at` UTC timestamp across all records in the batch, then writes NDJSON to `raw/api/lastfm/{chart_week}.ndjson`. Kafka offsets are committed only after a successful GCS write — failed writes can be replayed by re-running the job.
 
-**MusicBrainz extractor** (`extractors/musicbrainz/`)
+**`musicbrainz-extractor`** (`extractors/musicbrainz/`)
 
-Downloads `mbdump-artist.tar.bz2` from `data.metabrainz.org`, verifies checksum, decompresses, and streams the JSON to GCS `raw/batch/musicbrainz/mb_dump.json`. No intermediate Kafka hop — the dump is a static batch file.
+Resolves the latest dump version via the `LATEST` file, streams `artist.tar.xz` in 8 MB chunks computing SHA256 in parallel, verifies the checksum against `SHA256SUMS`, then stream-extracts the NDJSON from the XZ tarball. Only the nine fields the pipeline needs are retained (hyphenated keys normalised to snake_case, `life-span` flattened, genres reduced to a name list). Reduces GCS footprint from the full 2 GB dump to a compact filtered NDJSON.
 
-**Spotify extractor** (`extractors/spotify/`)
+**`spotify-extractor`** (`extractors/spotify/`)
 
-Downloads the `maharshipandya/spotify-tracks-dataset` Parquet file via `huggingface-hub` and stages it directly to GCS `raw/batch/spotify/spotify_tracks.parquet`.
+Downloads the auto-generated Parquet export from HuggingFace (`refs/convert/parquet` revision), drops the serialised DataFrame index column (`Unnamed: 0`), stamps `_ingested_at`, and stages to `raw/batch/spotify/spotify_tracks.parquet`.
 
 ---
 
 ### 5.4 Storage layout
 
 ```
-gs://{project}-music-raw/
+gs://portfolio-hub-2026-music-raw/
   raw/
     api/
-      lastfm/          NDJSON files, one per consumer run
+      lastfm/            {chart_week}.ndjson   — one file per consumer run
     batch/
-      musicbrainz/     mb_dump.json
-      spotify/         spotify_tracks.parquet
+      musicbrainz/       mb_artists.ndjson     — filtered artist dump
+      spotify/           spotify_tracks.parquet
 ```
-
-Uniform bucket-level access is enabled. Lifecycle rules (retention / deletion of old raw files) are planned but not yet defined.
 
 ---
 
-### 5.5 BigQuery datasets
+### 5.5 BigQuery
 
-| Dataset | Purpose |
-|:---|:---|
-| `raw` | Landing tables — GCS load jobs write here, schema matches source |
-| `music` (mart) | dbt output — dimensional models consumed by reporting |
+| Dataset | Tables | Purpose |
+|:---|:---|:---|
+| `raw` | `lastfm`, `mb_dump`, `spotify` | GCS load targets — schema defined in `infra/schemas/*.json` |
+| `music` | dbt mart models | Dimensional models consumed by reporting |
 
-BigQuery load jobs (GCS → `raw` tables) run as part of the Airflow DAG after GCS sensors confirm file presence.
+Table schemas are defined in `infra/schemas/*.json` — single source of truth used by both `bootstrap.sh` (table creation) and the Airflow DAGs (`GCSToBigQueryOperator`).
 
 ---
 
@@ -211,7 +207,7 @@ BigQuery load jobs (GCS → `raw` tables) run as part of the Airflow DAG after G
 ```mermaid
 flowchart TD
     SRC_LFM[/"raw.lastfm"/]
-    SRC_MB[/"raw.musicbrainz"/]
+    SRC_MB[/"raw.mb_dump"/]
     SRC_SP[/"raw.spotify"/]
 
     SRC_LFM --> stg_lastfm_charts
@@ -234,16 +230,19 @@ flowchart TD
 
 ### Model notes
 
-**Staging**
-- `stg_lastfm_charts` — casts types, generates `chart_key` surrogate (MBID + week), passes through `_ingested_at`
-- `stg_mb_artists` — maps MusicBrainz JSON fields; most columns currently stub `cast(null …)` pending confirmed dump schema
-- `stg_spotify_tracks` — column names pending Parquet schema confirmation from HuggingFace dataset
+**Staging** — all fully implemented
 
-**Intermediate**
-- `int_artist_resolution` — joins Last.fm and MusicBrainz on MBID; `is_mb_verified` flag distinguishes matched vs unmatched artists. Name-normalisation fallback (for records without MBID) is not yet implemented.
+- `stg_lastfm_charts` — casts types, generates `chart_key` surrogate on `artist_name + chart_week` (not MBID, which is nullable), passes through `_ingested_at`
+- `stg_mb_artists` — maps confirmed dump fields; parses `begin_date`/`end_date` strings via `safe.parse_date`; `artist_type` validated with `accepted_values`
+- `stg_spotify_tracks` — full confirmed schema from HuggingFace dataset inspection; range tests on all 0–1 audio features, `popularity` 0–100, `key` 0–11, `mode` accepted_values [0, 1]
+
+**Intermediate** — logic pending
+
+- `int_artist_resolution` — joins Last.fm and MusicBrainz on MBID; `is_mb_verified` flag set. Name-normalisation fallback for records without MBID is not yet implemented.
 - `int_track_enriched` — joins Last.fm chart records with Spotify tracks on normalised artist + track name. Matching logic not yet implemented.
 
 **Mart**
+
 - `dim_artist` — one row per artist, MBID as natural key, surrogate `artist_key`
 - `dim_track` — one row per track, `track_key` surrogate
 - `fact_chart_position` — one row per artist × chart week; `track_key` join deferred until `int_track_enriched` matching is complete
@@ -252,67 +251,83 @@ flowchart TD
 
 ## 7. Orchestration
 
-Runs monthly (`0 0 1 * *`) on Astronomer Cloud. All extraction jobs run in parallel; downstream tasks gate on GCS file presence.
+Five DAGs on Astronomer Cloud. `music_pipeline` is the only scheduled DAG; the rest run on trigger only, preventing race conditions and unintended runs.
 
 ```mermaid
 flowchart TD
-    START(["DAG trigger\n1st of month"])
+    SCHED(["Schedule\n0 0 1 * *"])
+    SCHED --> music_pipeline
 
-    START --> extract_lastfm
-    START --> extract_musicbrainz
-    START --> extract_spotify
+    subgraph music_pipeline["music_pipeline (orchestrator)"]
+        TL["trigger_lastfm"]
+        TM["trigger_musicbrainz"]
+        TS["trigger_spotify"]
+        TT["trigger_transform"]
+        TL & TM & TS --> TT
+    end
 
-    extract_lastfm      --> wait_for_lastfm["wait_for_lastfm\nGCSObjectExistenceSensor"]
-    extract_musicbrainz --> wait_for_lastfm
-    extract_musicbrainz --> wait_for_musicbrainz["wait_for_musicbrainz\nGCSObjectExistenceSensor"]
-    extract_spotify     --> wait_for_spotify["wait_for_spotify\nGCSObjectExistenceSensor"]
+    subgraph lastfm_pipeline["lastfm_pipeline (schedule: None)"]
+        direction LR
+        LE["extract_lastfm"] --> LC["consume_lastfm"] --> LW["wait_for_lastfm"] --> LL["load_lastfm"]
+    end
 
-    wait_for_lastfm     --> bq_load_lastfm["bq_load_lastfm"]
-    wait_for_musicbrainz --> bq_load_musicbrainz["bq_load_musicbrainz"]
-    wait_for_spotify    --> bq_load_spotify["bq_load_spotify"]
+    subgraph musicbrainz_pipeline["musicbrainz_pipeline (schedule: None)"]
+        direction LR
+        ME["extract_musicbrainz"] --> MW["wait_for_musicbrainz"] --> ML["load_musicbrainz"]
+    end
 
-    bq_load_lastfm      --> dbt_run["dbt_run\nCloud Run Job"]
-    bq_load_musicbrainz --> dbt_run
-    bq_load_spotify     --> dbt_run
+    subgraph spotify_pipeline["spotify_pipeline (schedule: None)"]
+        direction LR
+        SE["extract_spotify"] --> SW["wait_for_spotify"] --> SL["load_spotify"]
+    end
 
-    dbt_run --> dbt_test["dbt_test\nCloud Run Job"]
-    dbt_test --> notify["notify\nemail / Slack"]
+    subgraph music_transform["music_transform (schedule: None)"]
+        direction LR
+        RD["run_dbt"] --> TD["test_dbt"]
+    end
+
+    TL -->|TriggerDagRunOperator\nwait_for_completion=True| lastfm_pipeline
+    TM -->|TriggerDagRunOperator\nwait_for_completion=True| musicbrainz_pipeline
+    TS -->|TriggerDagRunOperator\nwait_for_completion=True| spotify_pipeline
+    TT -->|TriggerDagRunOperator\nwait_for_completion=True| music_transform
 ```
 
-> Note: `wait_for_lastfm` is not yet in the DAG code — the Last.fm path currently flows through Kafka and a consumer job, so the sensor should target the consumer's output file in GCS, not a direct extractor output. This needs to be wired up alongside the Kafka consumer implementation.
+Each `TriggerDagRunOperator` uses `wait_for_completion=True` and `poke_interval=60` — the orchestrator blocks on each sub-DAG and only advances when it succeeds. A failure in one source does not affect the others and can be restarted in isolation without re-running the full pipeline.
 
 ---
 
 ## 8. Infrastructure
 
-All GCP resources are provisioned by `infra/bootstrap.sh` — a plain shell script using `gcloud` and `bq` CLI commands. The script is idempotent: it checks existence before every create, so it is safe to re-run at any time. It runs automatically via GitHub Actions on every merge to `main`.
+All GCP resources are provisioned by `infra/bootstrap.sh` using `gcloud` and `bq` CLI commands. The script is idempotent — it checks existence before every create. It runs automatically on every merge to `main` via GitHub Actions.
 
 **Provisioned**
 - GCS bucket (`portfolio-hub-2026-music-raw`) with uniform bucket-level access
 - BigQuery datasets: `raw`, `music`
+- BigQuery raw tables: `raw.lastfm`, `raw.mb_dump`, `raw.spotify` (schemas from `infra/schemas/`)
 - Artifact Registry repository: `music-pipeline` (Docker, `europe-west2`)
-- Secret Manager secrets: `lastfm-api-key`, `kafka-bootstrap-servers`, `kafka-api-key`, `kafka-api-secret` (secret values added manually via console, not in script)
-- Service accounts: `music-cloudrun-sa` (extractors, consumer, dbt runner), `music-airflow-sa` (Astronomer Cloud)
+- Secret Manager secrets: `lastfm-api-key`, `kafka-bootstrap-servers`, `kafka-api-key`, `kafka-api-secret`
+- Service accounts: `music-cloudrun-sa`, `music-airflow-sa`
 - IAM bindings:
   - `music-cloudrun-sa` → `storage.objectAdmin` on raw bucket, `bigquery.dataEditor` + `bigquery.jobUser` at project, `secretmanager.secretAccessor` on all secrets
-  - `music-airflow-sa` → `run.invoker` at project, `storage.objectViewer` on raw bucket
+  - `music-airflow-sa` → `run.invoker` at project, `storage.objectViewer` + read on raw bucket, `bigquery.jobUser` + `bigquery.dataEditor` at project
+- Cloud Run Jobs: `lastfm-producer`, `lastfm-consumer`, `musicbrainz-extractor`, `spotify-extractor`
 
 **Pending**
-- Cloud Run Job definitions: `lastfm-producer`, `lastfm-consumer`, `musicbrainz-extractor`, `spotify-extractor`, `dbt-runner`
+- Cloud Run Job: `dbt-runner` (requires a dedicated dbt Docker image, not yet in CI)
 - GCS lifecycle rules (raw data retention)
 
 **Manual (not in script)**
-- GitHub Actions service account — created by hand; needs `artifactregistry.writer`, `storage.admin`, `bigquery.admin`, `secretmanager.admin`, `iam.serviceAccountAdmin`, `run.admin`
+- GitHub Actions SA (`github-actions-sa`) — created by hand; `SERVICE_ACCOUNT` secret set in GitHub repository settings
 - Secret values — added via GCP console after secrets are created
 
 ---
 
 ## 9. Security
 
-- API keys and Kafka credentials are stored in Secret Manager; Cloud Run Jobs access them via environment variable injection at runtime
-- No credentials are committed to source control; `.env.example` documents required vars
+- All credentials stored in Secret Manager; Cloud Run Jobs access them as environment variables at runtime via the `music-cloudrun-sa` service account
+- No credentials committed to source control; `.env.example` documents required variables
 - Uniform bucket-level access removes per-object ACLs
-- IAM follows least privilege: each service account will be scoped to only the resources it needs (pending implementation)
+- IAM follows least privilege per service account — each SA is scoped to only the operations it performs
 
 ---
 
@@ -320,17 +335,16 @@ All GCP resources are provisioned by `infra/bootstrap.sh` — a plain shell scri
 
 GitHub Actions (`.github/workflows/ci.yml`).
 
-**On every PR and push:**
-- `dbt-compile` — installs dbt-bigquery, runs `dbt deps` + `dbt compile` to validate model SQL
-- `docker-build` (matrix: lastfm, musicbrainz, spotify) — builds each extractor image to confirm Dockerfiles are valid; no push
+**On every PR and push to main:**
+- `validate-dbt` — writes a CI dbt profile, runs `dbt deps` + `dbt parse` to validate all model SQL without a live BigQuery connection
+- `test-extractors` (matrix: `lastfm-producer`, `lastfm-consumer`, `musicbrainz`, `spotify`) — installs requirements and runs pytest for each extractor
+- `validate-docker` (matrix: same four) — builds each Docker image to confirm Dockerfiles are valid; no push
 
-**On merge to `main` only** (after validate jobs pass):
-- `docker-push` — builds and pushes extractor images to Artifact Registry tagged with commit SHA and `latest`
-- `infra-apply` — authenticates to GCP with `SERVICE_ACCOUNT` secret, runs `infra/bootstrap.sh`
+**On merge to `main` only:**
+- `deploy-infra` — authenticates to GCP, runs `infra/bootstrap.sh`
+- `deploy-images` — builds and pushes extractor images to Artifact Registry tagged with commit SHA and `latest` (runs after `deploy-infra`)
 
-`docker-push` and `infra-apply` run in parallel on main; neither blocks the other.
-
-**Required GitHub secrets:** `SERVICE_ACCOUNT` (service account JSON key with permissions to manage GCS, BigQuery, Artifact Registry, Secret Manager, and Cloud Run).
+`deploy-infra` and `deploy-images` run in parallel where possible; `deploy-images` gates on `deploy-infra` to ensure Artifact Registry exists first.
 
 ---
 
@@ -338,24 +352,11 @@ GitHub Actions (`.github/workflows/ci.yml`).
 
 | Area | Item |
 |:---|:---|
-| Last.fm extractor | Implement `fetch_charts` pagination + rate limiting |
-| Last.fm extractor | Implement Kafka producer (Confluent Cloud) |
-| Last.fm consumer | New Cloud Run Job — drain Kafka topic → GCS |
-| MusicBrainz extractor | Download + checksum verify + decompress + GCS stage |
-| Spotify extractor | Confirm Parquet schema; implement `huggingface-hub` download |
-| BigQuery | Define raw table schemas for all three sources |
-| BigQuery | Write GCS → raw BQ load jobs |
-| dbt | `stg_mb_artists` — replace `cast(null …)` stubs once schema is confirmed |
-| dbt | `stg_spotify_tracks` — confirm column names from actual Parquet |
-| dbt | `int_artist_resolution` — name-normalisation fallback |
-| dbt | `int_track_enriched` — track matching logic |
-| dbt | `fact_chart_position` — wire `track_key` once enrichment is done |
-| Airflow DAG | Add BQ load tasks, dbt tasks, notification, full dependency graph |
-| Airflow DAG | Add `wait_for_lastfm` GCS sensor (Kafka consumer output path) |
-| Infra (`bootstrap.sh`) | Cloud Run Job definitions: lastfm-producer, lastfm-consumer, musicbrainz-extractor, spotify-extractor, dbt-runner |
-| Infra (`bootstrap.sh`) | GCS lifecycle rules (raw data retention) |
-| Manual | Create GitHub Actions SA; add JSON key as `SERVICE_ACCOUNT` in GitHub repository secrets |
-| Manual | Populate secret values in Secret Manager via GCP console |
-| Confluent | Create cluster and `lastfm.charts` topic; store creds in Secret Manager |
-| Reporting | Connect BigQuery to Looker Studio; build four dashboard pages |
+| dbt | `int_artist_resolution` — name-normalisation fallback for artists without MBID |
+| dbt | `int_track_enriched` — track matching logic (normalised artist + track name join) |
+| dbt | `fact_chart_position` — wire `track_key` once `int_track_enriched` is complete |
+| Infra | `dbt-runner` Cloud Run Job — requires a dedicated dbt Docker image |
+| Infra | GCS lifecycle rules for raw data retention |
+| Manual | Populate Last.fm API key in Secret Manager |
+| Reporting | Connect BigQuery to Looker Studio — build four dashboard pages |
 | Reporting | Connect BigQuery to Google Sheets via native connector |
