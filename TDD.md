@@ -1,7 +1,7 @@
 # Technical Design Document — gcp-music-0001
 
 **Status:** In Development  
-**Last updated:** 2026-05-19  
+**Last updated:** 2026-05-20  
 **Author:** David Bryne Adedeji
 
 ---
@@ -310,11 +310,8 @@ All GCP resources are provisioned by `infra/bootstrap.sh` using `gcloud` and `bq
 - IAM bindings:
   - `music-cloudrun-sa` → `storage.objectAdmin` on raw bucket, `bigquery.dataEditor` + `bigquery.jobUser` at project, `secretmanager.secretAccessor` on all secrets
   - `music-airflow-sa` → `run.invoker` at project, `storage.objectViewer` + read on raw bucket, `bigquery.jobUser` + `bigquery.dataEditor` at project
-- Cloud Run Jobs: `lastfm-producer`, `lastfm-consumer`, `musicbrainz-extractor`, `spotify-extractor`
-
-**Pending**
-- Cloud Run Job: `dbt-runner` (requires a dedicated dbt Docker image, not yet in CI)
-- GCS lifecycle rules (raw data retention)
+- Cloud Run Jobs: `lastfm-producer`, `lastfm-consumer`, `musicbrainz-extractor`, `spotify-extractor`, `dbt-runner`
+- GCS lifecycle rule: raw objects deleted after 90 days (`infra/lifecycle.json`)
 
 **Manual (not in script)**
 - GitHub Actions SA (`github-actions-sa`) — created by hand; `SERVICE_ACCOUNT` secret set in GitHub repository settings
@@ -352,8 +349,5 @@ GitHub Actions (`.github/workflows/ci.yml`).
 
 | Area | Item |
 |:---|:---|
-| Infra | `dbt-runner` Cloud Run Job — requires a dedicated dbt Docker image |
-| Infra | GCS lifecycle rules for raw data retention |
-| Manual | Populate Last.fm API key in Secret Manager |
 | Reporting | Connect BigQuery to Looker Studio — build four dashboard pages |
 | Reporting | Connect BigQuery to Google Sheets via native connector |

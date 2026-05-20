@@ -41,15 +41,18 @@ dbt/
     staging/         Source conforming, one model per source
     intermediate/    Artist resolution, track enrichment
     mart/            dim_artist, dim_track, fact_chart_position
-  schemas/           Raw BigQuery table schema definitions (JSON)
+  Dockerfile         dbt-runner Cloud Run Job image
+  profiles.yml       Production BigQuery connection (oauth, europe-west2)
 dags/
-  music_pipeline.py       Orchestrator — monthly entry point
+  config.py               Shared constants — variables, job names, paths
+  music_pipeline.py       Orchestrator — monthly entry point (scheduled)
   lastfm_pipeline.py      Extract → load (triggered by orchestrator)
   musicbrainz_pipeline.py Extract → load (triggered by orchestrator)
   spotify_pipeline.py     Extract → load (triggered by orchestrator)
   music_transform.py      dbt run → dbt test (triggered by orchestrator)
 infra/
   bootstrap.sh       Idempotent gcloud resource provisioning
+  lifecycle.json     GCS raw data retention policy (90 days)
   schemas/           BigQuery raw table schema definitions
 .github/
   workflows/         CI/CD
