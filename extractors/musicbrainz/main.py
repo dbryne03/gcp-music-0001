@@ -1,5 +1,4 @@
 import hashlib
-import io
 import json
 import logging
 import os
@@ -18,12 +17,39 @@ GCS_BLOB = "raw/batch/musicbrainz/mb_artists.ndjson"
 
 
 def get_latest_version() -> str:
+    """Fetch the identifier of the most recent MusicBrainz JSON dump.
+
+    Reads the LATEST file published alongside each dump, which contains
+    the dump timestamp in YYYYMMDD-HHMMSS format.
+
+    Returns:
+        Dump version string, e.g. '20260516-001002'.
+
+    Raises:
+        requests.HTTPError: If the LATEST file cannot be retrieved.
+    """
     resp = requests.get(f"{BASE_URL}/LATEST", timeout=30)
     resp.raise_for_status()
     return resp.text.strip()
 
 
 def expected_sha256(version: str) -> str:
+    """Look up the expected SHA256 hash for the artist archive from the dump manifest.
+
+    Parses the SHA256SUMS file published with each dump and returns the hash
+    for ARCHIVE_NAME. Used to verify the integrity of the downloaded archive
+    before extraction.
+
+    Args:
+        version: Dump version string returned by get_latest_version().
+
+    Returns:
+        Lowercase hex SHA256 digest for the artist archive.
+
+    Raises:
+        ValueError: If ARCHIVE_NAME is not listed in SHA256SUMS.
+        requests.HTTPError: If the SHA256SUMS file cannot be retrieved.
+    """
     resp = requests.get(f"{BASE_URL}/{version}/SHA256SUMS", timeout=30)
     resp.raise_for_status()
     for line in resp.text.splitlines():
@@ -34,6 +60,22 @@ def expected_sha256(version: str) -> str:
 
 
 def download(version: str, dest: Path) -> str:
+    """Stream-download the artist archive and compute its SHA256 hash.
+
+    Downloads in 8 MB chunks to keep memory usage flat regardless of archive
+    size. The hash is computed incrementally over the same chunks so the file
+    is only read once.
+
+    Args:
+        version: Dump version string used to construct the download URL.
+        dest: Local path to write the downloaded archive to.
+
+    Returns:
+        Lowercase hex SHA256 digest of the downloaded file.
+
+    Raises:
+        requests.HTTPError: If the download request fails.
+    """
     url = f"{BASE_URL}/{version}/{ARCHIVE_NAME}"
     logger.info("Downloading %s", url)
     sha256 = hashlib.sha256()
@@ -47,7 +89,21 @@ def download(version: str, dest: Path) -> str:
 
 
 def extract_and_filter(archive: Path, out: Path) -> int:
-    """Stream-extract artist NDJSON, keeping only pipeline-relevant fields."""
+    """Extract the artist NDJSON from the archive and filter to pipeline fields.
+
+    Locates the artist member inside the XZ tarball, reads it line by line,
+    and writes a compact NDJSON file containing only the fields the pipeline
+    needs. Hyphenated MusicBrainz keys are normalised to snake_case and the
+    life-span object is flattened to begin_date, end_date, and ended. Genre
+    objects are reduced to a plain list of name strings.
+
+    Args:
+        archive: Path to the downloaded artist.tar.xz archive.
+        out: Path to write the filtered NDJSON output to.
+
+    Returns:
+        Number of artist records written.
+    """
     count = 0
     with tarfile.open(archive, "r:xz") as tar:
         member = next(
@@ -75,12 +131,28 @@ def extract_and_filter(archive: Path, out: Path) -> int:
 
 
 def stage_to_gcs(local: Path, bucket: str) -> None:
+    """Upload the filtered artist NDJSON to GCS.
+
+    Args:
+        local: Path to the local NDJSON file to upload.
+        bucket: GCS bucket name (without gs:// prefix).
+    """
     client = storage.Client()
     client.bucket(bucket).blob(GCS_BLOB).upload_from_filename(str(local))
     logger.info("Staged to gs://%s/%s", bucket, GCS_BLOB)
 
 
 def main() -> None:
+    """Entry point for the MusicBrainz extractor Cloud Run Job.
+
+    Resolves the latest dump version, downloads and verifies the artist
+    archive, filters it to pipeline fields, and stages the result to GCS.
+    All intermediate files are written to a temporary directory that is
+    cleaned up automatically on exit.
+
+    Raises:
+        ValueError: If the downloaded archive fails the SHA256 checksum.
+    """
     bucket = os.environ["GCS_BUCKET_RAW"]
 
     with tempfile.TemporaryDirectory() as tmp:
