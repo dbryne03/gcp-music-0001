@@ -143,38 +143,22 @@ jobs:
         with:
           ref: ${{ inputs.sha || github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Deploy to Astronomer (attempt 1)
-        id: deploy_1
-        continue-on-error: true
-        uses: astronomer/deploy-action@v0.13.0
-        with:
-          deployment-id: ${{ env.ASTRONOMER_DEPLOYMENT_ID }}
-          workspace: ${{ env.ASTRONOMER_WORKSPACE_ID }}
-          deploy-type: image-and-dags
-          force: true
-        env:
-          ASTRO_API_TOKEN: ${{ secrets.ASTRONOMER_API_TOKEN }}
+      - name: Install Astro CLI
+        run: curl -sSL install.astronomer.io | sudo bash -s
 
-      - name: Deploy to Astronomer (attempt 2)
-        id: deploy_2
-        if: steps.deploy_1.outcome == 'failure'
-        continue-on-error: true
-        uses: astronomer/deploy-action@v0.13.0
-        with:
-          deployment-id: ${{ env.ASTRONOMER_DEPLOYMENT_ID }}
-          workspace: ${{ env.ASTRONOMER_WORKSPACE_ID }}
-          deploy-type: image-and-dags
-          force: true
+      - name: Deploy to Astronomer
         env:
           ASTRO_API_TOKEN: ${{ secrets.ASTRONOMER_API_TOKEN }}
-
-      - name: Deploy to Astronomer (attempt 3)
-        if: steps.deploy_2.outcome == 'failure'
-        uses: astronomer/deploy-action@v0.13.0
-        with:
-          deployment-id: ${{ env.ASTRONOMER_DEPLOYMENT_ID }}
-          workspace: ${{ env.ASTRONOMER_WORKSPACE_ID }}
-          deploy-type: image-and-dags
-          force: true
-        env:
-          ASTRO_API_TOKEN: ${{ secrets.ASTRONOMER_API_TOKEN }}
+        run: |
+          attempt=0
+          until astro deploy "${ASTRONOMER_DEPLOYMENT_ID}" \
+                --workspace-id "${ASTRONOMER_WORKSPACE_ID}" \
+                --force; do
+            attempt=$((attempt + 1))
+            if [ $attempt -ge 3 ]; then
+              echo "Deploy failed after 3 attempts"
+              exit 1
+            fi
+            echo "Attempt $attempt failed — retrying in 30s"
+            sleep 30
+          done
