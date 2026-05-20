@@ -220,5 +220,20 @@ jobs:
         with:
           project_id: ${{ env.PROJECT_ID }}
 
-      - name: Provision GCP resources
-        run: bash infra/provision.sh
+      - name: Enable GCP APIs
+        run: bash infra/provision-apis.sh
+
+      - name: Provision storage
+        run: bash infra/provision-storage.sh
+
+      - name: Provision BigQuery
+        run: bash infra/provision-bigquery.sh
+
+      - name: Provision Artifact Registry
+        run: bash infra/provision-registry.sh
+
+      - name: Provision Secret Manager
+        run: bash infra/provision-secrets.sh
+
+      - name: Provision IAM
+        run: bash infra/provision-iam.sh

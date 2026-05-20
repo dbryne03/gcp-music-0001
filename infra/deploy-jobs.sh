@@ -4,11 +4,8 @@
 # Requires DEPLOY_SHA env var (set by CI to the triggering commit SHA).
 # Falls back to 'latest' when run manually without DEPLOY_SHA set.
 set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/vars.sh"
 
-PROJECT="portfolio-hub-2026"
-REGION="europe-west2"
-REGISTRY="${REGION}-docker.pkg.dev/${PROJECT}/music-pipeline"
-CLOUDRUN_SA="music-cloudrun-sa@${PROJECT}.iam.gserviceaccount.com"
 TAG="${DEPLOY_SHA:-latest}"
 
 echo "=== Cloud Run Jobs (tag: ${TAG}) ==="
