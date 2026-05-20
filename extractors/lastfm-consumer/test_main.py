@@ -1,9 +1,10 @@
 import json
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+from confluent_kafka import KafkaError
 
-from main import GCS_BLOB_PREFIX, GROUP_ID, drain, stage_to_gcs
+from main import GCS_BLOB_PREFIX, drain, stage_to_gcs
 
 
 def _make_msg(record: dict, error=None):
@@ -68,8 +69,6 @@ def test_drain_returns_empty_on_no_messages():
 
 
 def test_drain_raises_on_kafka_error():
-    from confluent_kafka import KafkaError, KafkaException
-
     mock_error = MagicMock()
     mock_error.code.return_value = KafkaError.UNKNOWN_TOPIC_OR_PART
 
@@ -82,7 +81,7 @@ def test_drain_raises_on_kafka_error():
 
 # ── stage_to_gcs ──────────────────────────────────────────────────────────────
 
-def test_stage_to_gcs_uses_chart_week_in_blob_name(tmp_path):
+def test_stage_to_gcs_uses_chart_week_in_blob_name():
     records = [_chart_record(week="2026-05-19")]
 
     mock_client = MagicMock()
