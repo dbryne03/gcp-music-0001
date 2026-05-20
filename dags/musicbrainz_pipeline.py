@@ -1,53 +1,40 @@
-import json
-from datetime import datetime
-from pathlib import Path
-
 from airflow import DAG
 from airflow.providers.google.cloud.operators.cloud_run import CloudRunExecuteJobOperator
 from airflow.providers.google.cloud.sensors.gcs import GCSObjectExistenceSensor
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 
-GCP_PROJECT = "{{ var.value.gcp_project_id }}"
-GCP_REGION = "europe-west2"
-GCS_BUCKET = "{{ var.value.gcs_bucket_raw }}"
-
-_SCHEMAS = Path(__file__).parent.parent / "infra" / "schemas"
-
-
-def _schema(name: str) -> list:
-    return json.loads((_SCHEMAS / f"{name}.json").read_text())
-
+import config
 
 with DAG(
-    dag_id="musicbrainz_pipeline",
+    dag_id=config.DAG_MUSICBRAINZ,
     description="MusicBrainz — download artist dump, stage to GCS, load to BigQuery",
     schedule=None,
-    start_date=datetime(2026, 1, 1),
+    start_date=config.START_DATE,
     catchup=False,
     tags=["music", "gcp", "musicbrainz", "monthly"],
 ) as dag:
 
     extract = CloudRunExecuteJobOperator(
         task_id="extract_musicbrainz",
-        project_id=GCP_PROJECT,
-        region=GCP_REGION,
-        job_name="musicbrainz-extractor",
+        project_id=config.GCP_PROJECT,
+        region=config.GCP_REGION,
+        job_name=config.JOB_MUSICBRAINZ,
     )
 
     wait = GCSObjectExistenceSensor(
         task_id="wait_for_musicbrainz",
-        bucket=GCS_BUCKET,
-        object="raw/batch/musicbrainz/mb_artists.ndjson",
+        bucket=config.GCS_BUCKET,
+        object=config.GCS_MB_BLOB,
     )
 
     load = GCSToBigQueryOperator(
         task_id="load_musicbrainz",
-        bucket=GCS_BUCKET,
-        source_objects=["raw/batch/musicbrainz/mb_artists.ndjson"],
-        destination_project_dataset_table="{{ var.value.gcp_project_id }}.raw.mb_dump",
+        bucket=config.GCS_BUCKET,
+        source_objects=[config.GCS_MB_BLOB],
+        destination_project_dataset_table=config.BQ_MB_DUMP,
         source_format="NEWLINE_DELIMITED_JSON",
         write_disposition="WRITE_TRUNCATE",
-        schema_fields=_schema("mb_dump"),
+        schema_fields=config.load_schema("mb_dump"),
     )
 
     extract >> wait >> load
