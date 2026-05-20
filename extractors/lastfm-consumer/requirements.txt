@@ -1,0 +1,2 @@
+confluent-kafka>=2.3
+google-cloud-storage>=2.14
