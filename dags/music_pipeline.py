@@ -1,4 +1,6 @@
+import json
 from datetime import datetime
+from pathlib import Path
 
 from airflow import DAG
 from airflow.providers.google.cloud.operators.cloud_run import CloudRunExecuteJobOperator
@@ -9,29 +11,15 @@ GCP_PROJECT = "{{ var.value.gcp_project_id }}"
 GCP_REGION = "europe-west2"
 GCS_BUCKET = "{{ var.value.gcs_bucket_raw }}"
 
-# Raw table schemas — must match infra/schemas/*.json
-LASTFM_SCHEMA = [
-    {"name": "artist_mbid",  "type": "STRING",    "mode": "NULLABLE"},
-    {"name": "artist_name",  "type": "STRING",    "mode": "REQUIRED"},
-    {"name": "chart_week",   "type": "STRING",    "mode": "REQUIRED"},
-    {"name": "rank",         "type": "INTEGER",   "mode": "REQUIRED"},
-    {"name": "listeners",    "type": "INTEGER",   "mode": "REQUIRED"},
-    {"name": "playcount",    "type": "INTEGER",   "mode": "REQUIRED"},
-    {"name": "_ingested_at", "type": "TIMESTAMP", "mode": "REQUIRED"},
-]
+_SCHEMAS = Path(__file__).parent.parent / "infra" / "schemas"
 
-MB_DUMP_SCHEMA = [
-    {"name": "id",           "type": "STRING",    "mode": "REQUIRED"},
-    {"name": "name",         "type": "STRING",    "mode": "REQUIRED"},
-    {"name": "sort_name",    "type": "STRING",    "mode": "REQUIRED"},
-    {"name": "type",         "type": "STRING",    "mode": "NULLABLE"},
-    {"name": "country",      "type": "STRING",    "mode": "NULLABLE"},
-    {"name": "begin_date",   "type": "STRING",    "mode": "NULLABLE"},
-    {"name": "end_date",     "type": "STRING",    "mode": "NULLABLE"},
-    {"name": "ended",        "type": "BOOLEAN",   "mode": "NULLABLE"},
-    {"name": "genres",       "type": "STRING",    "mode": "REPEATED"},
-    {"name": "_ingested_at", "type": "TIMESTAMP", "mode": "REQUIRED"},
-]
+
+def _schema(name: str) -> list:
+    return json.loads((_SCHEMAS / f"{name}.json").read_text())
+
+
+LASTFM_SCHEMA = _schema("lastfm")
+MB_DUMP_SCHEMA = _schema("mb_dump")
 
 with DAG(
     dag_id="music_pipeline",
