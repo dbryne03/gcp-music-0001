@@ -1,6 +1,8 @@
 import os
 import logging
+import tempfile
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pandas as pd
 from huggingface_hub import hf_hub_download
@@ -74,13 +76,15 @@ def main() -> None:
 
     Downloads the Spotify tracks dataset from HuggingFace, drops the index
     column artefact, stamps an ingestion timestamp, and stages the result
-    to GCS as a single Parquet file.
+    to GCS as a single Parquet file. All intermediate files are written to
+    a temporary directory that is cleaned up automatically on exit.
     """
     bucket = os.environ["GCS_BUCKET_RAW"]
-    raw_path = download_parquet("/tmp/hf")
-    out_path = "/tmp/spotify_tracks.parquet"
-    prepare(raw_path, out_path)
-    stage_to_gcs(out_path, bucket)
+    with tempfile.TemporaryDirectory() as tmp:
+        raw_path = download_parquet(tmp)
+        out_path = str(Path(tmp) / "spotify_tracks.parquet")
+        prepare(raw_path, out_path)
+        stage_to_gcs(out_path, bucket)
 
 
 if __name__ == "__main__":

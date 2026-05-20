@@ -125,18 +125,19 @@ def publish_to_kafka(records: list[ArtistChart], topic: str) -> None:
             errors.append(str(err))
 
     producer = _kafka_producer()
-    for record in records:
-        producer.produce(
-            topic,
-            value=record.model_dump_json().encode(),
-            on_delivery=on_delivery,
-        )
-    producer.flush()
-
-    if errors:
-        raise RuntimeError(f"{len(errors)} messages failed delivery: {errors[:3]}")
-
-    logger.info("Published %d records to topic %s", len(records), topic)
+    try:
+        for record in records:
+            producer.produce(
+                topic,
+                value=record.model_dump_json().encode(),
+                on_delivery=on_delivery,
+            )
+        producer.flush()
+        if errors:
+            raise RuntimeError(f"{len(errors)} messages failed delivery: {errors[:3]}")
+        logger.info("Published %d records to topic %s", len(records), topic)
+    finally:
+        producer.close()
 
 
 def main() -> None:

@@ -31,7 +31,10 @@ def get_latest_version() -> str:
     """
     resp = requests.get(f"{BASE_URL}/LATEST", timeout=30)
     resp.raise_for_status()
-    return resp.text.strip()
+    version = resp.text.strip()
+    if not version:
+        raise ValueError("LATEST file is empty — MusicBrainz dump may be in progress")
+    return version
 
 
 def expected_sha256(version: str) -> str:
@@ -109,9 +112,11 @@ def extract_and_filter(archive: Path, out: Path) -> int:
     ingested_at = datetime.now(timezone.utc).isoformat()
     with tarfile.open(archive, "r:xz") as tar:
         member = next(
-            m for m in tar.getmembers()
-            if m.isfile() and m.name.split("/")[-1] == "artist"
+            (m for m in tar.getmembers() if m.isfile() and m.name.split("/")[-1] == "artist"),
+            None,
         )
+        if member is None:
+            raise FileNotFoundError(f"No 'artist' member found in {archive.name}")
         with tar.extractfile(member) as src, out.open("w") as dst:
             for raw_line in src:
                 rec = json.loads(raw_line)

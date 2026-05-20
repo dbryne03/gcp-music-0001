@@ -74,7 +74,11 @@ def drain(consumer: Consumer, topic: str) -> list[dict]:
             continue
 
         empty_polls = 0
-        record = json.loads(msg.value().decode("utf-8"))
+        try:
+            record = json.loads(msg.value().decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            logger.warning("Skipping malformed message at offset %s: %s", msg.offset(), exc)
+            continue
         record["_ingested_at"] = ingested_at
         records.append(record)
 
