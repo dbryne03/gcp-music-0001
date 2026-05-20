@@ -63,7 +63,7 @@ enriched as (
         ca.artist_name                              as chart_artist_name
     from spotify_tracks sp
     inner join chart_artists ca
-        on contains_substr(sp.artists, ca.name_key)
+        on instr(lower(sp.artists), ca.name_key) > 0
 )
 
 select * from enriched
