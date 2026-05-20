@@ -15,6 +15,15 @@ MAX_EMPTY_POLLS = 6  # 30 s of silence signals topic is drained
 
 
 def _consumer() -> Consumer:
+    """Build a Confluent Cloud consumer configured for the music pipeline.
+
+    Credentials are read from environment variables injected by Secret Manager
+    at Cloud Run Job startup. Offsets are not committed automatically — the
+    caller is responsible for committing after a successful GCS write.
+
+    Returns:
+        A configured confluent_kafka Consumer ready to subscribe.
+    """
     return Consumer({
         "bootstrap.servers": os.environ["KAFKA_BOOTSTRAP_SERVERS"],
         "security.protocol": "SASL_SSL",
@@ -28,6 +37,24 @@ def _consumer() -> Consumer:
 
 
 def drain(consumer: Consumer, topic: str) -> list[dict]:
+    """Read all available messages from a Kafka topic and return them as records.
+
+    Polls until MAX_EMPTY_POLLS consecutive empty polls are received, which
+    signals the topic is caught up. PARTITION_EOF is treated as an empty poll
+    rather than an error. A single _ingested_at timestamp is stamped across
+    all records in the batch so they share a consistent ingestion time.
+
+    Args:
+        consumer: A subscribed-ready confluent_kafka Consumer instance.
+        topic: Kafka topic name to subscribe to and drain.
+
+    Returns:
+        List of parsed message payloads with _ingested_at added. Empty list
+        if no messages were available.
+
+    Raises:
+        RuntimeError: If a non-EOF Kafka error is received during polling.
+    """
     consumer.subscribe([topic])
     records, empty_polls = [], 0
     ingested_at = datetime.now(timezone.utc).isoformat()
@@ -56,6 +83,20 @@ def drain(consumer: Consumer, topic: str) -> list[dict]:
 
 
 def stage_to_gcs(records: list[dict], bucket: str) -> str:
+    """Write a batch of chart records to GCS as NDJSON.
+
+    The output path is derived from the chart_week field of the first record,
+    producing a predictable blob name that the downstream Airflow
+    GCSObjectExistenceSensor can target without dynamic path resolution.
+
+    Args:
+        records: Non-empty list of chart record dicts, each containing a
+            chart_week field in YYYY-MM-DD format.
+        bucket: GCS bucket name (without gs:// prefix).
+
+    Returns:
+        The full blob name written, e.g. raw/api/lastfm/2026-05-19.ndjson.
+    """
     chart_week = records[0]["chart_week"]
     blob_name = f"{GCS_BLOB_PREFIX}/{chart_week}.ndjson"
     ndjson = "\n".join(json.dumps(r) for r in records)
@@ -69,6 +110,12 @@ def stage_to_gcs(records: list[dict], bucket: str) -> str:
 
 
 def main() -> None:
+    """Entry point for the Last.fm Kafka consumer Cloud Run Job.
+
+    Drains the Last.fm charts topic, writes records to GCS, and commits
+    offsets only after a successful write. If the topic is empty the job
+    exits cleanly without writing anything.
+    """
     bucket = os.environ["GCS_BUCKET_RAW"]
     topic = os.environ["KAFKA_TOPIC_LASTFM"]
 
