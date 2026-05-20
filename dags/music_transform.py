@@ -17,6 +17,7 @@ with DAG(
         project_id=config.GCP_PROJECT,
         region=config.GCP_REGION,
         job_name=config.JOB_DBT_RUNNER,
+        gcp_conn_id=config.GCP_CONN_ID,
         overrides={"container_overrides": [{"args": ["run"]}]},
     )
 
@@ -25,6 +26,7 @@ with DAG(
         project_id=config.GCP_PROJECT,
         region=config.GCP_REGION,
         job_name=config.JOB_DBT_RUNNER,
+        gcp_conn_id=config.GCP_CONN_ID,
         overrides={"container_overrides": [{"args": ["test"]}]},
     )
 

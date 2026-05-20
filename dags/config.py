@@ -5,6 +5,9 @@ Airflow variables — set these in Astronomer: Admin → Variables
   gcp_project_id : portfolio-hub-2026
   gcp_region     : europe-west2
   gcs_bucket_raw : portfolio-hub-2026-music-raw
+
+Airflow connection — set in Astronomer: Admin → Connections
+  music-airflow-sa : Google Cloud connection using music-airflow-sa SA key
 """
 import json
 from datetime import datetime
@@ -24,6 +27,9 @@ BQ_SPOTIFY = "{{ var.value.gcp_project_id }}.raw.spotify"
 GCS_LASTFM_PREFIX = "raw/api/lastfm"
 GCS_MB_BLOB       = "raw/batch/musicbrainz/mb_artists.ndjson"
 GCS_SPOTIFY_BLOB  = "raw/batch/spotify/spotify_tracks.parquet"
+
+# ── GCP connection ────────────────────────────────────────────────────────────
+GCP_CONN_ID = "music-airflow-sa"
 
 # ── Cloud Run Job names ───────────────────────────────────────────────────────
 JOB_LASTFM_PRODUCER = "lastfm-producer"

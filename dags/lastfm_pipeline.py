@@ -25,6 +25,7 @@ with DAG(
         project_id=config.GCP_PROJECT,
         region=config.GCP_REGION,
         job_name=config.JOB_LASTFM_PRODUCER,
+        gcp_conn_id=config.GCP_CONN_ID,
     )
 
     consume = CloudRunExecuteJobOperator(
@@ -32,12 +33,14 @@ with DAG(
         project_id=config.GCP_PROJECT,
         region=config.GCP_REGION,
         job_name=config.JOB_LASTFM_CONSUMER,
+        gcp_conn_id=config.GCP_CONN_ID,
     )
 
     wait = GCSObjectExistenceSensor(
         task_id="wait_for_lastfm",
         bucket=config.GCS_BUCKET,
         object=_LASTFM_BLOB,
+        gcp_conn_id=config.GCP_CONN_ID,
     )
 
     load = GCSToBigQueryOperator(
@@ -48,6 +51,7 @@ with DAG(
         source_format="NEWLINE_DELIMITED_JSON",
         write_disposition="WRITE_TRUNCATE",
         schema_fields=config.load_schema("lastfm"),
+        gcp_conn_id=config.GCP_CONN_ID,
     )
 
     extract >> consume >> wait >> load

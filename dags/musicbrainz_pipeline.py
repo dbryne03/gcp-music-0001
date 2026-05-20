@@ -19,12 +19,14 @@ with DAG(
         project_id=config.GCP_PROJECT,
         region=config.GCP_REGION,
         job_name=config.JOB_MUSICBRAINZ,
+        gcp_conn_id=config.GCP_CONN_ID,
     )
 
     wait = GCSObjectExistenceSensor(
         task_id="wait_for_musicbrainz",
         bucket=config.GCS_BUCKET,
         object=config.GCS_MB_BLOB,
+        gcp_conn_id=config.GCP_CONN_ID,
     )
 
     load = GCSToBigQueryOperator(
@@ -35,6 +37,7 @@ with DAG(
         source_format="NEWLINE_DELIMITED_JSON",
         write_disposition="WRITE_TRUNCATE",
         schema_fields=config.load_schema("mb_dump"),
+        gcp_conn_id=config.GCP_CONN_ID,
     )
 
     extract >> wait >> load
