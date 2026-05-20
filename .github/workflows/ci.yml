@@ -63,6 +63,27 @@ jobs:
           GCP_PROJECT_ID: ${{ env.PROJECT_ID }}
         run: dbt parse
 
+  test-spotify:
+    name: Test / Spotify extractor
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        working-directory: extractors/spotify
+        run: pip install -r requirements.txt pytest
+
+      - name: Run tests
+        working-directory: extractors/spotify
+        run: pytest test_main.py -v
+
   validate-docker:
     name: Validate / Docker build (${{ matrix.service }})
     runs-on: ubuntu-24.04
@@ -86,7 +107,7 @@ jobs:
   deploy-images:
     name: Deploy / Push extractor images
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: [validate-dbt, validate-docker, deploy-infra]
+    needs: [validate-dbt, validate-docker, test-spotify, deploy-infra]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
