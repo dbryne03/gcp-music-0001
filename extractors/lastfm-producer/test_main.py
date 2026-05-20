@@ -154,10 +154,10 @@ def test_publish_to_kafka_serialises_to_json():
 def test_publish_to_kafka_raises_on_delivery_failure():
     mock_producer = MagicMock()
 
-    def fake_produce(topic, value, callback):
+    def fake_produce(topic, value, on_delivery):
         err = MagicMock()
         err.__str__ = lambda _: "broker timeout"
-        callback(err, None)
+        on_delivery(err, None)
 
     mock_producer.produce.side_effect = fake_produce
 

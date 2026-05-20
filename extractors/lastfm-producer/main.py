@@ -129,7 +129,7 @@ def publish_to_kafka(records: list[ArtistChart], topic: str) -> None:
         producer.produce(
             topic,
             value=record.model_dump_json().encode(),
-            callback=on_delivery,
+            on_delivery=on_delivery,
         )
     producer.flush()
 
