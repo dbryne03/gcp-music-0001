@@ -58,6 +58,11 @@ gcloud projects add-iam-policy-binding "${PROJECT}" \
     --role="roles/run.invoker" --condition=None
 echo "  [ok]  airflow-sa → run.invoker"
 
+gcloud projects add-iam-policy-binding "${PROJECT}" \
+    --member="serviceAccount:${AIRFLOW_SA}" \
+    --role="roles/run.developer" --condition=None
+echo "  [ok]  airflow-sa → run.developer (required for run.operations.get)"
+
 gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
     --project="${PROJECT}" \
     --member="serviceAccount:${AIRFLOW_SA}" \
