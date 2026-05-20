@@ -58,9 +58,12 @@ def expected_sha256(version: str) -> str:
     resp.raise_for_status()
     for line in resp.text.splitlines():
         parts = line.split()
-        if len(parts) == 2 and parts[1] == ARCHIVE_NAME:
+        if len(parts) == 2 and parts[1].lstrip("*") == ARCHIVE_NAME:
             return parts[0]
-    raise ValueError(f"{ARCHIVE_NAME} not found in SHA256SUMS")
+    raise ValueError(
+        f"{ARCHIVE_NAME} not found in SHA256SUMS. "
+        f"First 300 chars: {resp.text[:300]!r}"
+    )
 
 
 def download(version: str, dest: Path) -> str:
