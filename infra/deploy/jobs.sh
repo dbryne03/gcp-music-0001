@@ -44,5 +44,39 @@ for JOB_NAME in "${!JOBS[@]}"; do
     fi
 done
 
+# ── Environment variables and secrets ─────────────────────────────────────────
+# Applied after create/update so they are set on first run and idempotent on
+# subsequent runs regardless of whether the job was just created or existed.
+
+echo "=== Cloud Run Job config ==="
+
+KAFKA_SECRETS="KAFKA_BOOTSTRAP_SERVERS=kafka-bootstrap-servers:latest,KAFKA_API_KEY=kafka-api-key:latest,KAFKA_API_SECRET=kafka-api-secret:latest"
+
+# musicbrainz-extractor — GCS bucket only
+gcloud run jobs update musicbrainz-extractor \
+    --set-env-vars="GCS_BUCKET_RAW=${BUCKET}" \
+    --region="${REGION}" --project="${PROJECT}"
+echo "  [ok]  musicbrainz-extractor env"
+
+# spotify-extractor — GCS bucket only
+gcloud run jobs update spotify-extractor \
+    --set-env-vars="GCS_BUCKET_RAW=${BUCKET}" \
+    --region="${REGION}" --project="${PROJECT}"
+echo "  [ok]  spotify-extractor env"
+
+# lastfm-producer — GCS bucket, Kafka topic, and all Kafka + Last.fm secrets
+gcloud run jobs update lastfm-producer \
+    --set-env-vars="GCS_BUCKET_RAW=${BUCKET},KAFKA_TOPIC_LASTFM=lastfm.charts" \
+    --set-secrets="LASTFM_API_KEY=lastfm-api-key:latest,${KAFKA_SECRETS}" \
+    --region="${REGION}" --project="${PROJECT}"
+echo "  [ok]  lastfm-producer env + secrets"
+
+# lastfm-consumer — GCS bucket, Kafka topic, and Kafka secrets
+gcloud run jobs update lastfm-consumer \
+    --set-env-vars="GCS_BUCKET_RAW=${BUCKET},KAFKA_TOPIC_LASTFM=lastfm.charts" \
+    --set-secrets="${KAFKA_SECRETS}" \
+    --region="${REGION}" --project="${PROJECT}"
+echo "  [ok]  lastfm-consumer env + secrets"
+
 echo ""
 echo "Cloud Run Jobs deployed."
