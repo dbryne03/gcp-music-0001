@@ -92,7 +92,7 @@ jobs:
   deploy-images:
     name: Deploy / Push extractor images
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: [validate-dbt, validate-docker]
+    needs: [validate-dbt, validate-docker, deploy-infra]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
