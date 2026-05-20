@@ -12,7 +12,13 @@ for DATASET in raw music; do
         echo "  [exists]  dataset ${DATASET}"
     else
         echo "  [create]  dataset ${DATASET}"
-        bq mk --dataset --location="${REGION}" "${PROJECT}:${DATASET}"
+        case "${DATASET}" in
+            raw)   DESC="Raw landing dataset — one table per source" ;;
+            music) DESC="dbt mart layer — dimensional models" ;;
+        esac
+        bq mk --dataset --location="${REGION}" \
+            --description="${DESC}" \
+            "${PROJECT}:${DATASET}"
     fi
 done
 

@@ -6,19 +6,20 @@ set -a; source "$(dirname "${BASH_SOURCE[0]}")/../config.env"; set +a
 
 echo "=== Service Accounts ==="
 
-for SA_NAME in music-cloudrun-sa music-airflow-sa; do
-    SA="${SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
-    if gcloud iam service-accounts describe "${SA}" --project="${PROJECT}" &>/dev/null 2>&1; then
+declare -A SA_DISPLAY=(
+    ["${CLOUDRUN_SA}"]="Music Pipeline — Cloud Run Jobs"
+    ["${AIRFLOW_SA}"]="Music Pipeline — Airflow / Astronomer Cloud"
+)
+
+for SA_EMAIL in "${!SA_DISPLAY[@]}"; do
+    SA_NAME="${SA_EMAIL%%@*}"
+    if gcloud iam service-accounts describe "${SA_EMAIL}" --project="${PROJECT}" &>/dev/null 2>&1; then
         echo "  [exists]  ${SA_NAME}"
     else
         echo "  [create]  ${SA_NAME}"
-        case "${SA_NAME}" in
-            music-cloudrun-sa) DISPLAY="Music Pipeline — Cloud Run Jobs" ;;
-            music-airflow-sa)  DISPLAY="Music Pipeline — Airflow / Astronomer Cloud" ;;
-        esac
         gcloud iam service-accounts create "${SA_NAME}" \
             --project="${PROJECT}" \
-            --display-name="${DISPLAY}"
+            --display-name="${SA_DISPLAY[$SA_EMAIL]}"
     fi
 done
 
