@@ -152,7 +152,6 @@ jobs:
           workspace: ${{ env.ASTRONOMER_WORKSPACE_ID }}
           deploy-type: image-and-dags
           force: true
-          wait: true
         env:
           ASTRO_API_TOKEN: ${{ secrets.ASTRONOMER_API_TOKEN }}
 
@@ -166,7 +165,6 @@ jobs:
           workspace: ${{ env.ASTRONOMER_WORKSPACE_ID }}
           deploy-type: image-and-dags
           force: true
-          wait: true
         env:
           ASTRO_API_TOKEN: ${{ secrets.ASTRONOMER_API_TOKEN }}
 
@@ -178,6 +176,5 @@ jobs:
           workspace: ${{ env.ASTRONOMER_WORKSPACE_ID }}
           deploy-type: image-and-dags
           force: true
-          wait: true
         env:
           ASTRO_API_TOKEN: ${{ secrets.ASTRONOMER_API_TOKEN }}
