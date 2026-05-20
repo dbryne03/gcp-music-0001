@@ -10,6 +10,7 @@ env:
   PROJECT_ID: portfolio-hub-2026
   REGION: europe-west2
   REGISTRY: europe-west2-docker.pkg.dev/portfolio-hub-2026/music-pipeline
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
 
@@ -24,14 +25,26 @@ jobs:
           python-version: "3.12"
       - name: Install dbt
         run: pip install dbt-bigquery
+      - name: Create CI dbt profile
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'EOF'
+          gcp_music:
+            target: ci
+            outputs:
+              ci:
+                type: bigquery
+                method: oauth
+                project: portfolio-hub-2026
+                dataset: raw
+                threads: 1
+          EOF
       - name: dbt deps
         working-directory: dbt
         run: dbt deps
-      - name: dbt compile
+      - name: dbt parse
         working-directory: dbt
-        run: dbt compile
-        env:
-          GCP_PROJECT_ID: ${{ env.PROJECT_ID }}
+        run: dbt parse
 
   docker-build:
     runs-on: ubuntu-latest
