@@ -9,14 +9,15 @@ Airflow variables — set these in Astronomer: Admin → Variables
 Airflow connection — set in Astronomer: Admin → Connections
   music-airflow-sa : Google Cloud connection using music-airflow-sa SA key
 """
-import json
 from datetime import datetime
-from pathlib import Path
 
 # ── Airflow variables (Jinja — resolved at task execution time) ───────────────
 GCP_PROJECT = "{{ var.value.gcp_project_id }}"
 GCP_REGION  = "{{ var.value.gcp_region }}"
 GCS_BUCKET  = "{{ var.value.gcs_bucket_raw }}"
+
+# ── GCP connection ────────────────────────────────────────────────────────────
+GCP_CONN_ID = "music-airflow-sa"
 
 # ── BigQuery destination tables ───────────────────────────────────────────────
 BQ_LASTFM  = "{{ var.value.gcp_project_id }}.raw.lastfm"
@@ -28,8 +29,56 @@ GCS_LASTFM_PREFIX = "raw/api/lastfm"
 GCS_MB_BLOB       = "raw/batch/musicbrainz/mb_artists.ndjson"
 GCS_SPOTIFY_BLOB  = "raw/batch/spotify/spotify_tracks.parquet"
 
-# ── GCP connection ────────────────────────────────────────────────────────────
-GCP_CONN_ID = "music-airflow-sa"
+# ── BigQuery schemas ──────────────────────────────────────────────────────────
+# Inlined to avoid a filesystem dependency at DAG parse time.
+# infra/schemas/*.json holds the same definitions for gcloud/bq CLI use.
+
+SCHEMA_LASTFM = [
+    {"name": "artist_mbid",  "type": "STRING",    "mode": "NULLABLE"},
+    {"name": "artist_name",  "type": "STRING",    "mode": "REQUIRED"},
+    {"name": "chart_week",   "type": "STRING",    "mode": "REQUIRED"},
+    {"name": "rank",         "type": "INTEGER",   "mode": "REQUIRED"},
+    {"name": "listeners",    "type": "INTEGER",   "mode": "REQUIRED"},
+    {"name": "playcount",    "type": "INTEGER",   "mode": "REQUIRED"},
+    {"name": "_ingested_at", "type": "TIMESTAMP", "mode": "REQUIRED"},
+]
+
+SCHEMA_MB_DUMP = [
+    {"name": "id",           "type": "STRING",    "mode": "REQUIRED"},
+    {"name": "name",         "type": "STRING",    "mode": "REQUIRED"},
+    {"name": "sort_name",    "type": "STRING",    "mode": "REQUIRED"},
+    {"name": "type",         "type": "STRING",    "mode": "NULLABLE"},
+    {"name": "country",      "type": "STRING",    "mode": "NULLABLE"},
+    {"name": "begin_date",   "type": "STRING",    "mode": "NULLABLE"},
+    {"name": "end_date",     "type": "STRING",    "mode": "NULLABLE"},
+    {"name": "ended",        "type": "BOOLEAN",   "mode": "NULLABLE"},
+    {"name": "genres",       "type": "STRING",    "mode": "REPEATED"},
+    {"name": "_ingested_at", "type": "TIMESTAMP", "mode": "REQUIRED"},
+]
+
+SCHEMA_SPOTIFY = [
+    {"name": "track_id",         "type": "STRING",    "mode": "REQUIRED"},
+    {"name": "artists",          "type": "STRING",    "mode": "NULLABLE"},
+    {"name": "album_name",       "type": "STRING",    "mode": "NULLABLE"},
+    {"name": "track_name",       "type": "STRING",    "mode": "NULLABLE"},
+    {"name": "popularity",       "type": "INTEGER",   "mode": "NULLABLE"},
+    {"name": "duration_ms",      "type": "INTEGER",   "mode": "NULLABLE"},
+    {"name": "explicit",         "type": "BOOLEAN",   "mode": "NULLABLE"},
+    {"name": "danceability",     "type": "FLOAT",     "mode": "NULLABLE"},
+    {"name": "energy",           "type": "FLOAT",     "mode": "NULLABLE"},
+    {"name": "key",              "type": "INTEGER",   "mode": "NULLABLE"},
+    {"name": "loudness",         "type": "FLOAT",     "mode": "NULLABLE"},
+    {"name": "mode",             "type": "INTEGER",   "mode": "NULLABLE"},
+    {"name": "speechiness",      "type": "FLOAT",     "mode": "NULLABLE"},
+    {"name": "acousticness",     "type": "FLOAT",     "mode": "NULLABLE"},
+    {"name": "instrumentalness", "type": "FLOAT",     "mode": "NULLABLE"},
+    {"name": "liveness",         "type": "FLOAT",     "mode": "NULLABLE"},
+    {"name": "valence",          "type": "FLOAT",     "mode": "NULLABLE"},
+    {"name": "tempo",            "type": "FLOAT",     "mode": "NULLABLE"},
+    {"name": "time_signature",   "type": "INTEGER",   "mode": "NULLABLE"},
+    {"name": "track_genre",      "type": "STRING",    "mode": "NULLABLE"},
+    {"name": "_ingested_at",     "type": "TIMESTAMP", "mode": "REQUIRED"},
+]
 
 # ── Cloud Run Job names ───────────────────────────────────────────────────────
 JOB_LASTFM_PRODUCER = "lastfm-producer"
@@ -48,10 +97,3 @@ DAG_TRANSFORM   = "music_transform"
 SCHEDULE              = "0 0 1 * *"
 START_DATE            = datetime(2026, 1, 1)
 TRIGGER_POKE_INTERVAL = 60
-
-# ── Schema loader ─────────────────────────────────────────────────────────────
-_SCHEMAS = Path(__file__).parent.parent / "infra" / "schemas"
-
-
-def load_schema(name: str) -> list:
-    return json.loads((_SCHEMAS / f"{name}.json").read_text())

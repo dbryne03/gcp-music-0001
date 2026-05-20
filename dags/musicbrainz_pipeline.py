@@ -36,7 +36,7 @@ with DAG(
         destination_project_dataset_table=config.BQ_MB_DUMP,
         source_format="NEWLINE_DELIMITED_JSON",
         write_disposition="WRITE_TRUNCATE",
-        schema_fields=config.load_schema("mb_dump"),
+        schema_fields=config.SCHEMA_MB_DUMP,
         gcp_conn_id=config.GCP_CONN_ID,
     )
 

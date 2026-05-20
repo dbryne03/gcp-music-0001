@@ -36,7 +36,7 @@ with DAG(
         destination_project_dataset_table=config.BQ_SPOTIFY,
         source_format="PARQUET",
         write_disposition="WRITE_TRUNCATE",
-        schema_fields=config.load_schema("spotify"),
+        schema_fields=config.SCHEMA_SPOTIFY,
         gcp_conn_id=config.GCP_CONN_ID,
     )
 

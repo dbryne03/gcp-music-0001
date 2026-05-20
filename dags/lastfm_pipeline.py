@@ -50,7 +50,7 @@ with DAG(
         destination_project_dataset_table=config.BQ_LASTFM,
         source_format="NEWLINE_DELIMITED_JSON",
         write_disposition="WRITE_TRUNCATE",
-        schema_fields=config.load_schema("lastfm"),
+        schema_fields=config.SCHEMA_LASTFM,
         gcp_conn_id=config.GCP_CONN_ID,
     )
 
