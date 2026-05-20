@@ -23,14 +23,12 @@ with DAG(
         project_id=config.GCP_PROJECT,
         region=config.GCP_REGION,
         job_name=config.JOB_SPOTIFY,
-        gcp_conn_id=config.GCP_CONN_ID,
     )
 
     wait = GCSObjectExistenceSensor(
         task_id="wait_for_spotify",
         bucket=config.GCS_BUCKET,
         object=config.GCS_SPOTIFY_BLOB,
-        gcp_conn_id=config.GCP_CONN_ID,
     )
 
     load = GCSToBigQueryOperator(

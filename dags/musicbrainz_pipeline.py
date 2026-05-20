@@ -23,14 +23,12 @@ with DAG(
         project_id=config.GCP_PROJECT,
         region=config.GCP_REGION,
         job_name=config.JOB_MUSICBRAINZ,
-        gcp_conn_id=config.GCP_CONN_ID,
     )
 
     wait = GCSObjectExistenceSensor(
         task_id="wait_for_musicbrainz",
         bucket=config.GCS_BUCKET,
         object=config.GCS_MB_BLOB,
-        gcp_conn_id=config.GCP_CONN_ID,
     )
 
     load = GCSToBigQueryOperator(
