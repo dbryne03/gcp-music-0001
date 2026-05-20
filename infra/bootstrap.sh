@@ -26,8 +26,9 @@ gcloud services enable \
 echo "  [ok]  all required APIs enabled"
 
 # Note: the GitHub Actions service account is created and managed manually.
-# It requires: artifactregistry.writer, storage.admin, bigquery.admin,
-# secretmanager.admin, iam.serviceAccountAdmin, run.admin.
+# It requires: serviceusage.serviceUsageAdmin, storage.admin, bigquery.admin,
+# artifactregistry.admin, secretmanager.admin, iam.serviceAccountAdmin,
+# resourcemanager.projectIamAdmin, run.admin.
 
 # ── Storage ───────────────────────────────────────────────────────────────────
 
