@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: int_artist_resolution
+    description: >
+      Resolved artist identities across Last.fm and MusicBrainz. Resolution
+      is attempted first by MBID (high confidence), then by normalised name
+      (lowercase, punctuation stripped) as a fallback for the ~30% of Last.fm
+      charting artists who carry no MBID. is_mb_verified distinguishes the
+      two resolution paths.
+    columns:
+      - name: artist_mbid
+        tests: [unique, not_null]
+      - name: artist_name
+        tests: [not_null]
+      - name: is_mb_verified
+        tests: [not_null]

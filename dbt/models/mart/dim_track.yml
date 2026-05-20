@@ -2,11 +2,37 @@ version: 2
 
 models:
   - name: dim_track
-    description: Track dimension — Spotify audio features joined to Last.fm play data
+    description: >
+      Track dimension containing Spotify audio features for all tracks by
+      artists who appeared in the Last.fm charts. One row per track_id.
+      Tracks are matched to charting artists via int_track_enriched.
     columns:
       - name: track_key
         tests: [unique, not_null]
       - name: track_id
+        description: Spotify track URI
         tests: [unique, not_null]
       - name: track_name
         tests: [not_null]
+      - name: artists
+        tests: [not_null]
+      - name: popularity
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+      - name: danceability
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+      - name: energy
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+      - name: valence
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1

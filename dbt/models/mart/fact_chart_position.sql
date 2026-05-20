@@ -1,3 +1,8 @@
+-- Grain: one row per artist per chart week.
+-- Joins to dim_artist for the dimensional artist key.
+-- Audio feature analysis is available via dim_artist → dim_track
+-- using the artist_name relationship in int_track_enriched.
+
 with charts as (
     select * from {{ ref('stg_lastfm_charts') }}
 ),
@@ -6,15 +11,13 @@ artists as (
     select artist_key, artist_mbid from {{ ref('dim_artist') }}
 ),
 
-tracks as (
-    select track_key, track_id from {{ ref('dim_track') }}
-),
-
--- TODO: join tracks once track matching is implemented in int_track_enriched
 final as (
     select
-        {{ dbt_utils.generate_surrogate_key(['charts.chart_key']) }} as chart_position_key,
+        {{ dbt_utils.generate_surrogate_key(['charts.chart_key']) }}
+                                    as chart_position_key,
         artists.artist_key,
+        charts.artist_mbid,
+        charts.artist_name,
         charts.chart_week,
         charts.rank,
         charts.listeners,

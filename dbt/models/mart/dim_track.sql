@@ -1,14 +1,29 @@
 with source as (
-    select distinct
+    -- Deduplicate: a track can appear once per matched chart artist;
+    -- we keep one row per track_id, taking the highest popularity.
+    select distinct on (track_id)
         track_id,
         track_name,
         artists,
+        album_name,
+        track_genre,
+        popularity,
+        duration_ms,
+        explicit,
         danceability,
         energy,
-        tempo,
+        key,
+        loudness,
+        mode,
+        speechiness,
+        acousticness,
+        instrumentalness,
+        liveness,
         valence,
-        popularity
+        tempo,
+        time_signature
     from {{ ref('int_track_enriched') }}
+    order by track_id, popularity desc
 ),
 
 final as (
@@ -17,11 +32,23 @@ final as (
         track_id,
         track_name,
         artists,
+        album_name,
+        track_genre,
+        popularity,
+        duration_ms,
+        explicit,
         danceability,
         energy,
-        tempo,
+        key,
+        loudness,
+        mode,
+        speechiness,
+        acousticness,
+        instrumentalness,
+        liveness,
         valence,
-        popularity
+        tempo,
+        time_signature
     from source
 )
 

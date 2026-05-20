@@ -2,11 +2,16 @@ version: 2
 
 models:
   - name: fact_chart_position
-    description: Weekly Last.fm chart positions joined to artist and track dimensions
+    description: >
+      Weekly Last.fm chart positions at artist × chart_week grain.
+      One row per artist per chart week. artist_key links to dim_artist
+      for full artist metadata including MusicBrainz attributes.
     columns:
       - name: chart_position_key
         tests: [unique, not_null]
       - name: artist_key
+        tests: [not_null]
+      - name: artist_name
         tests: [not_null]
       - name: chart_week
         tests: [not_null]
@@ -15,4 +20,8 @@ models:
           - not_null
           - dbt_utils.accepted_range:
               min_value: 1
-              max_value: 100
+              max_value: 10000
+      - name: listeners
+        tests: [not_null]
+      - name: playcount
+        tests: [not_null]
