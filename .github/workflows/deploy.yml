@@ -24,7 +24,7 @@ env:
   PROJECT_ID: portfolio-hub-2026
   DOCKER_BUILDKIT: "1"
   ASTRONOMER_DEPLOYMENT: gcp-music-0001
-  ASTRONOMER_WORKSPACE_ID: cmpdm5q660la201h638qilvei
+  ASTRONOMER_WORKSPACE_ID: cmpdm68fe0jrl01jrhfml0s6f
   ASTRONOMER_DEPLOYMENT_ID: cmpe9klbe1ai101jrkez3qkpo
 
 jobs:
