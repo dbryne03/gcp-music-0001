@@ -1,4 +1,4 @@
-from datetime import timezone
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -52,7 +52,7 @@ def test_prepare_drops_index_column(prepared_parquet):
 def test_prepare_adds_ingested_at(prepared_parquet):
     assert "_ingested_at" in prepared_parquet.columns
     assert prepared_parquet["_ingested_at"].notna().all()
-    assert prepared_parquet["_ingested_at"].dt.tz == timezone.utc
+    assert prepared_parquet["_ingested_at"].iloc[0].utcoffset() == timedelta(0)
 
 
 def test_prepare_preserves_row_count(prepared_parquet):
