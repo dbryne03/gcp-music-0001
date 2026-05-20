@@ -62,7 +62,7 @@ flowchart LR
     end
 
     subgraph CRJOBS["Extraction — Cloud Run Jobs"]
-        LFMJOB["lastfm-extractor"]
+        LFMJOB["lastfm-producer"]
         MBJOB["musicbrainz-extractor"]
         SPJOB["spotify-extractor"]
         LFMCONS["lastfm-consumer"]
@@ -298,7 +298,7 @@ All GCP resources are provisioned by `infra/bootstrap.sh` — a plain shell scri
   - `music-airflow-sa` → `run.invoker` at project, `storage.objectViewer` on raw bucket
 
 **Pending**
-- Cloud Run Job definitions: `lastfm-extractor`, `lastfm-consumer`, `musicbrainz-extractor`, `spotify-extractor`, `dbt-runner`
+- Cloud Run Job definitions: `lastfm-producer`, `lastfm-consumer`, `musicbrainz-extractor`, `spotify-extractor`, `dbt-runner`
 - GCS lifecycle rules (raw data retention)
 
 **Manual (not in script)**
@@ -352,7 +352,7 @@ GitHub Actions (`.github/workflows/ci.yml`).
 | dbt | `fact_chart_position` — wire `track_key` once enrichment is done |
 | Airflow DAG | Add BQ load tasks, dbt tasks, notification, full dependency graph |
 | Airflow DAG | Add `wait_for_lastfm` GCS sensor (Kafka consumer output path) |
-| Infra (`bootstrap.sh`) | Cloud Run Job definitions: lastfm-extractor, lastfm-consumer, musicbrainz-extractor, spotify-extractor, dbt-runner |
+| Infra (`bootstrap.sh`) | Cloud Run Job definitions: lastfm-producer, lastfm-consumer, musicbrainz-extractor, spotify-extractor, dbt-runner |
 | Infra (`bootstrap.sh`) | GCS lifecycle rules (raw data retention) |
 | Manual | Create GitHub Actions SA; add JSON key as `SERVICE_ACCOUNT` in GitHub repository secrets |
 | Manual | Populate secret values in Secret Manager via GCP console |

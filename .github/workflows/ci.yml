@@ -70,7 +70,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [lastfm, lastfm-consumer, musicbrainz, spotify]
+        service: [lastfm-producer, lastfm-consumer, musicbrainz, spotify]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -95,7 +95,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [lastfm, lastfm-consumer, musicbrainz, spotify]
+        service: [lastfm-producer, lastfm-consumer, musicbrainz, spotify]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -136,7 +136,7 @@ jobs:
 
       - name: Build and push extractor images
         run: |
-          for SERVICE in lastfm lastfm-consumer musicbrainz spotify; do
+          for SERVICE in lastfm-producer lastfm-consumer musicbrainz spotify; do
             IMAGE="${REGISTRY}/${SERVICE}-extractor"
             docker build extractors/${SERVICE} \
               --tag "${IMAGE}:${{ github.sha }}" \

@@ -1,4 +1,6 @@
-from unittest.mock import MagicMock, call, patch
+import re
+from datetime import datetime
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -36,14 +38,12 @@ def _make_response(artists: list[dict], page: int = 1, total_pages: int = 1) -> 
 # ── _chart_week ───────────────────────────────────────────────────────────────
 
 def test_chart_week_is_monday():
-    from datetime import datetime
     date_str = _chart_week()
     dt = datetime.strptime(date_str, "%Y-%m-%d")
     assert dt.weekday() == 0  # Monday
 
 
 def test_chart_week_format():
-    import re
     assert re.match(r"^\d{4}-\d{2}-\d{2}$", _chart_week())
 
 

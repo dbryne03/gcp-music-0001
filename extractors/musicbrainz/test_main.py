@@ -76,7 +76,7 @@ def test_extract_returns_correct_row_count(test_archive, tmp_path):
 def test_extract_normalises_field_names(test_archive, tmp_path):
     out = tmp_path / "out.ndjson"
     extract_and_filter(test_archive, out)
-    rows = [json.loads(l) for l in out.read_text().splitlines()]
+    rows = [json.loads(line) for line in out.read_text().splitlines()]
     assert "sort_name" in rows[0]
     assert "begin_date" in rows[0]
     assert "end_date" in rows[0]
@@ -87,7 +87,7 @@ def test_extract_normalises_field_names(test_archive, tmp_path):
 def test_extract_flattens_genres_to_name_list(test_archive, tmp_path):
     out = tmp_path / "out.ndjson"
     extract_and_filter(test_archive, out)
-    rows = [json.loads(l) for l in out.read_text().splitlines()]
+    rows = [json.loads(line) for line in out.read_text().splitlines()]
     assert rows[0]["genres"] == ["pop", "soul"]
     assert rows[1]["genres"] == []
 
@@ -95,7 +95,7 @@ def test_extract_flattens_genres_to_name_list(test_archive, tmp_path):
 def test_extract_maps_life_span_fields(test_archive, tmp_path):
     out = tmp_path / "out.ndjson"
     extract_and_filter(test_archive, out)
-    rows = [json.loads(l) for l in out.read_text().splitlines()]
+    rows = [json.loads(line) for line in out.read_text().splitlines()]
     mj = rows[0]
     assert mj["begin_date"] == "1958-08-29"
     assert mj["end_date"] == "2009-06-25"
@@ -109,7 +109,7 @@ def test_extract_maps_life_span_fields(test_archive, tmp_path):
 def test_extract_drops_unrequired_fields(test_archive, tmp_path):
     out = tmp_path / "out.ndjson"
     extract_and_filter(test_archive, out)
-    rows = [json.loads(l) for l in out.read_text().splitlines()]
+    rows = [json.loads(line) for line in out.read_text().splitlines()]
     for row in rows:
         assert "relations" not in row
         assert "disambiguation" not in row

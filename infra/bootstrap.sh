@@ -162,7 +162,7 @@ gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
 echo "  [ok]  airflow-sa → storage.objectViewer on ${BUCKET}"
 
 # ── Cloud Run Jobs ────────────────────────────────────────────────────────────
-# TODO: lastfm-extractor, lastfm-consumer, musicbrainz-extractor,
+# TODO: lastfm-producer, lastfm-consumer, musicbrainz-extractor,
 #       spotify-extractor, dbt-runner
 
 echo ""

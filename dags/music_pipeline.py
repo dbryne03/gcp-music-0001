@@ -21,7 +21,7 @@ with DAG(
         task_id="extract_lastfm",
         project_id=GCP_PROJECT,
         region=GCP_REGION,
-        job_name="lastfm-extractor",
+        job_name="lastfm-producer",
     )
 
     extract_musicbrainz = CloudRunExecuteJobOperator(
