@@ -1,7 +1,7 @@
 with source as (
     -- Deduplicate: a track can appear once per matched chart artist;
     -- we keep one row per track_id, taking the highest popularity.
-    select distinct on (track_id)
+    select
         track_id,
         track_name,
         artists,
@@ -23,7 +23,10 @@ with source as (
         tempo,
         time_signature
     from {{ ref('int_track_enriched') }}
-    order by track_id, popularity desc
+    qualify row_number() over (
+        partition by track_id
+        order by popularity desc
+    ) = 1
 ),
 
 final as (

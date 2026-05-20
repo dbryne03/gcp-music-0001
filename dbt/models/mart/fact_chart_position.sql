@@ -8,7 +8,7 @@ with charts as (
 ),
 
 artists as (
-    select artist_key, artist_mbid from {{ ref('dim_artist') }}
+    select artist_key, artist_name from {{ ref('dim_artist') }}
 ),
 
 final as (
@@ -23,7 +23,7 @@ final as (
         charts.listeners,
         charts.playcount
     from charts
-    left join artists using (artist_mbid)
+    left join artists on charts.artist_name = artists.artist_name
 )
 
 select * from final
