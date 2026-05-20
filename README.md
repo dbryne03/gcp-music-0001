@@ -44,16 +44,18 @@ dbt/
   Dockerfile         dbt-runner Cloud Run Job image
   profiles.yml       Production BigQuery connection (oauth, europe-west2)
 dags/
-  config.py               Shared constants — variables, job names, paths
+  config.py               Shared constants — variables, job names, schemas
   music_pipeline.py       Orchestrator — monthly entry point (scheduled)
   lastfm_pipeline.py      Extract → load (triggered by orchestrator)
   musicbrainz_pipeline.py Extract → load (triggered by orchestrator)
   spotify_pipeline.py     Extract → load (triggered by orchestrator)
   music_transform.py      dbt run → dbt test (triggered by orchestrator)
+  schemas/                BigQuery raw table schema definitions
 infra/
-  bootstrap.sh       Idempotent gcloud resource provisioning
+  config.env         Shared infrastructure variables
   lifecycle.json     GCS raw data retention policy (90 days)
-  schemas/           BigQuery raw table schema definitions
+  provision/         Idempotent GCP resource provisioning scripts
+  deploy/            Cloud Run Job create/update scripts
 .github/
-  workflows/         CI/CD
+  workflows/         CI/CD — validate, infra, deploy
 ```
