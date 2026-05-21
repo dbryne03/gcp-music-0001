@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
-set -a; source "$(dirname "${BASH_SOURCE[0]}")/../config.env"; set +a
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+set -a; source "${SCRIPT_DIR}/../config.env"; set +a
 
 echo "=== APIs ==="
 

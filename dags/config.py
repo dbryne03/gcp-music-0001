@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 _SCHEMAS = Path(__file__).parent / "schemas"
 
 
-def load_schema(name: str) -> list:
+def load_schema(name: str) -> list[dict]:
     """Load a BigQuery table schema from dags/schemas/{name}.json.
 
     Args:

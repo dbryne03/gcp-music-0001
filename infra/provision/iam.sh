@@ -5,7 +5,8 @@
 # Project-level bindings for pipeline SAs live in _project_iam.sh (manual).
 # add-iam-policy-binding calls are idempotent — no pre-check needed.
 set -euo pipefail
-set -a; source "$(dirname "${BASH_SOURCE[0]}")/../config.env"; set +a
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+set -a; source "${SCRIPT_DIR}/../config.env"; set +a
 
 echo "=== Service Accounts ==="
 
@@ -16,7 +17,7 @@ declare -A SA_DISPLAY=(
 
 for SA_EMAIL in "${!SA_DISPLAY[@]}"; do
     SA_NAME="${SA_EMAIL%%@*}"
-    if gcloud iam service-accounts describe "${SA_EMAIL}" --project="${PROJECT}" &>/dev/null 2>&1; then
+    if gcloud iam service-accounts describe "${SA_EMAIL}" --project="${PROJECT}" &>/dev/null; then
         echo "  [exists]  ${SA_NAME}"
     else
         echo "  [create]  ${SA_NAME}"

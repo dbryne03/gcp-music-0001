@@ -6,6 +6,8 @@ import config
 with DAG(
     dag_id="music_pipeline",
     description="Monthly orchestrator — triggers all source pipelines then transform",
+    default_args=config.DEFAULT_TASK_ARGS,
+    on_failure_callback=config.on_pipeline_failure,
     schedule=config.SCHEDULE,
     start_date=config.START_DATE,
     catchup=False,

@@ -7,13 +7,11 @@ on:
     paths-ignore:
       - '**.md'
       - '.gitignore'
-      - 'TODO.md'
   pull_request:
     branches: [main]
     paths-ignore:
       - '**.md'
       - '.gitignore'
-      - 'TODO.md'
   workflow_dispatch:
 
 concurrency:
@@ -100,7 +98,7 @@ jobs:
           python-version: "3.12"
 
       - name: Check DAG syntax
-        run: python -m py_compile dags/config.py dags/music_pipeline.py dags/lastfm_pipeline.py dags/musicbrainz_pipeline.py dags/spotify_pipeline.py dags/music_transform.py
+        run: python -m compileall -q dags/
 
   dbt:
     name: Validate / dbt parse

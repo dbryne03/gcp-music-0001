@@ -21,7 +21,8 @@ models:
         tests: [not_null]
       - name: album_name
       - name: track_genre
-        description: Genre label from the Spotify dataset — nullable when no genre is assigned
+        description: Genre label from the Spotify dataset
+        tests: [not_null]
       - name: popularity
         description: Spotify popularity score 0–100
         tests:

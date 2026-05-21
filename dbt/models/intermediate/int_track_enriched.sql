@@ -8,7 +8,7 @@ with chart_artists as (
     select distinct
         artist_mbid,
         artist_name,
-        lower(regexp_replace(trim(artist_name), r'[^a-z0-9 ]', '')) as name_key
+        {{ normalise_name('artist_name') }} as name_key
     from {{ ref('stg_lastfm_charts') }}
 ),
 

@@ -308,10 +308,10 @@ Each `TriggerDagRunOperator` uses `wait_for_completion=True` and `poke_interval=
 | GCP connections | `music-airflow-sa` (explicit `gcp_conn_id`), `google_cloud_default` (impersonation fallback for sensors) |
 
 **Airflow 3.x compatibility notes**
-- All DAGs prepend `sys.path.insert(0, str(Path(__file__).parent))` — required because Airflow 3 DAG bundles do not automatically add `dags/` to `sys.path`
 - `TriggerDagRunOperator` imported from `airflow.providers.standard.operators.trigger_dagrun` (moved from core in Airflow 3)
 - `GCSObjectExistenceSensor` uses `google_cloud_default` connection — `gcp_conn_id` parameter removed as it is not accepted in `apache-airflow-providers-google>=13.0.0`
 - `google_cloud_default` connection uses Workload Identity impersonation via the Astronomer deployment SA (`astro-continuous-horizon-8866@...`) → `music-airflow-sa`
+- Astronomer Cloud's Airflow 3 runtime adds `dags/` to `sys.path` automatically — plain `import config` works without any path manipulation
 
 **Astro project files** (repo root)
 

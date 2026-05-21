@@ -4,7 +4,7 @@ models:
   - name: int_track_enriched
     description: >
       Spotify track audio features joined to Last.fm charting artists via
-      case-insensitive substring match using INSTR(lower(artists), name_key).
+      case-insensitive substring match using INSTR(lower(artists), name_key) > 0.
       One row per Spotify track per matching chart artist. A track with
       multiple charting artists will appear once per matched artist.
       dim_track deduplicates on track_id.

@@ -8,7 +8,7 @@ SCHEMAS_DIR="${SCRIPT_DIR}/../../dags/schemas"
 echo "=== BigQuery ==="
 
 for DATASET in raw music; do
-    if bq show --project_id="${PROJECT}" "${PROJECT}:${DATASET}" &>/dev/null 2>&1; then
+    if bq show --project_id="${PROJECT}" "${PROJECT}:${DATASET}" &>/dev/null; then
         echo "  [exists]  dataset ${DATASET}"
     else
         echo "  [create]  dataset ${DATASET}"
@@ -31,7 +31,7 @@ declare -A RAW_TABLES=(
 )
 
 for TABLE in "${!RAW_TABLES[@]}"; do
-    if bq show --project_id="${PROJECT}" "${PROJECT}:raw.${TABLE}" &>/dev/null 2>&1; then
+    if bq show --project_id="${PROJECT}" "${PROJECT}:raw.${TABLE}" &>/dev/null; then
         echo "  [exists]  raw.${TABLE}"
     else
         echo "  [create]  raw.${TABLE}"

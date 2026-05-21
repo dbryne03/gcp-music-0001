@@ -4,7 +4,8 @@
 # Requires DEPLOY_SHA env var (set by CI to the triggering commit SHA).
 # Falls back to 'latest' when run manually without DEPLOY_SHA set.
 set -euo pipefail
-set -a; source "$(dirname "${BASH_SOURCE[0]}")/../config.env"; set +a
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+set -a; source "${SCRIPT_DIR}/../config.env"; set +a
 
 TAG="${DEPLOY_SHA:-latest}"
 
@@ -39,7 +40,7 @@ for JOB_NAME in "${!JOB_IMAGES[@]}"; do
     MEMORY="${RESOURCES##*:}"
 
     if gcloud run jobs describe "${JOB_NAME}" \
-            --project="${PROJECT}" --region="${REGION}" &>/dev/null 2>&1; then
+            --project="${PROJECT}" --region="${REGION}" &>/dev/null; then
         # Update: always use :latest — ensures the job runs the most recently
         # built image without failing when only some images were rebuilt this run.
         echo "  [update]  ${JOB_NAME} (${CPU} vCPU, ${MEMORY})"
