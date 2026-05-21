@@ -317,9 +317,9 @@ Each `TriggerDagRunOperator` uses `wait_for_completion=True` and `poke_interval=
 
 | File | Purpose |
 |:---|:---|
-| `Dockerfile` | Extends `quay.io/astronomer/astro-runtime:3.2-4`; `requirements.txt` is installed automatically |
+| `Dockerfile` | Extends `quay.io/astronomer/astro-runtime:3.2-4-python-3.12`; `requirements.txt` is installed automatically |
 | `packages.txt` | OS packages — empty but required by Astro Runtime ONBUILD |
-| `requirements.txt` | `apache-airflow-providers-google>=13.0.0`, `apache-airflow-providers-standard>=1.0.0` |
+| `requirements.txt` | Providers pinned via the official Airflow 3.2.1 / Python 3.12 constraint file (`constraints-3.12.txt`) |
 | `.astro/config.yaml` | Marks directory as Astro project for CLI recognition |
 
 ---
