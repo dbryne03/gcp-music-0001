@@ -4,7 +4,6 @@ __pycache__/
 .pytest_cache/
 .venv/
 node_modules/
-.pulumi/
 dbt/target/
 dbt/dbt_packages/
 dbt/logs/
