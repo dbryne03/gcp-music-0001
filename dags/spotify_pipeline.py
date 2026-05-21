@@ -8,6 +8,8 @@ import config
 with DAG(
     dag_id=config.DAG_SPOTIFY,
     description="Spotify — download HuggingFace dataset, stage to GCS, load to BigQuery",
+    default_args=config.DEFAULT_TASK_ARGS,
+    on_failure_callback=config.on_pipeline_failure,
     schedule=None,
     start_date=config.START_DATE,
     catchup=False,

@@ -6,6 +6,8 @@ import config
 with DAG(
     dag_id=config.DAG_TRANSFORM,
     description="dbt run and test — triggered by music_pipeline once all loads complete",
+    default_args=config.DEFAULT_TASK_ARGS,
+    on_failure_callback=config.on_pipeline_failure,
     schedule=None,
     start_date=config.START_DATE,
     catchup=False,

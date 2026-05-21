@@ -10,8 +10,11 @@ Airflow connection — set in Astronomer: Admin → Connections
   music-airflow-sa : Google Cloud connection using music-airflow-sa SA key
 """
 import json
-from datetime import datetime
+import logging
+from datetime import datetime, timedelta
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 _SCHEMAS = Path(__file__).parent / "schemas"
 
@@ -19,6 +22,7 @@ _SCHEMAS = Path(__file__).parent / "schemas"
 def load_schema(name: str) -> list:
     """Load a BigQuery table schema from dags/schemas/{name}.json."""
     return json.loads((_SCHEMAS / f"{name}.json").read_text())
+
 
 # ── Airflow variables (Jinja — resolved at task execution time) ───────────────
 GCP_PROJECT = "{{ var.value.gcp_project_id }}"
@@ -63,3 +67,35 @@ DAG_TRANSFORM   = "music_transform"
 SCHEDULE              = "0 0 1 * *"
 START_DATE            = datetime(2026, 1, 1)
 TRIGGER_POKE_INTERVAL = 60
+
+# ── Task resilience defaults ──────────────────────────────────────────────────
+# Applied via default_args on each source DAG.
+# execution_timeout is set above the Cloud Run task-timeout (3600 s) to allow
+# for API and polling overhead without masking genuinely stuck jobs.
+DEFAULT_TASK_ARGS = {
+    "retries": 2,
+    "retry_delay": timedelta(minutes=2),
+    "execution_timeout": timedelta(hours=2),
+}
+
+
+# ── Failure callback ──────────────────────────────────────────────────────────
+def on_pipeline_failure(context: dict) -> None:
+    """Log a structured failure alert when any task in a source pipeline fails.
+
+    Called by Airflow after all retries are exhausted. Extend this function
+    to emit Slack or email notifications when an alerting integration is added.
+
+    Args:
+        context: Airflow task context dictionary provided by the scheduler.
+    """
+    dag_id   = context["dag"].dag_id
+    task_id  = context["task_instance"].task_id
+    run_id   = context["run_id"]
+    exc      = context.get("exception")
+
+    logger.error(
+        "PIPELINE FAILURE — dag=%s task=%s run=%s exception=%s",
+        dag_id, task_id, run_id, exc,
+    )
+    # TODO: add Slack / email alert here

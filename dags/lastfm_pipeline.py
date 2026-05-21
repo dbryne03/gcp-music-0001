@@ -14,6 +14,8 @@ _LASTFM_BLOB = (
 with DAG(
     dag_id=config.DAG_LASTFM,
     description="Last.fm — produce to Kafka, consume to GCS, load to BigQuery",
+    default_args=config.DEFAULT_TASK_ARGS,
+    on_failure_callback=config.on_pipeline_failure,
     schedule=None,
     start_date=config.START_DATE,
     catchup=False,
