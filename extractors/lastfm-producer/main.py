@@ -35,19 +35,18 @@ def _chart_week() -> str:
     return monday.strftime("%Y-%m-%d")
 
 
-def fetch_charts(api_key: str) -> Generator[ArtistChart, None, None]:
-    """Paginate the Last.fm chart.getTopArtists endpoint and yield chart records.
+def fetch_charts(api_key: str) -> Generator[list[ArtistChart], None, None]:
+    """Paginate the Last.fm chart.getTopArtists endpoint and yield one page at a time.
 
-    Iterates all pages at PAGE_LIMIT artists per page. A 0.2 s delay is
-    applied between pages to stay within the Last.fm rate limit of 5 req/s.
-    Artist MBIDs returned as empty strings are normalised to None. Global
-    rank is calculated continuously across pages.
+    Yields pages rather than individual records so the caller can publish each
+    page to Kafka immediately. If a timeout occurs on page N, pages 1..N-1 are
+    already in Kafka; only page N onward is lost on a retry.
 
     Args:
         api_key: Last.fm API key used to authenticate each request.
 
     Yields:
-        ArtistChart records in descending chart rank order.
+        List of ArtistChart records for each page, in chart rank order.
 
     Raises:
         requests.HTTPError: If any API request returns a non-2xx status.
@@ -71,8 +70,8 @@ def fetch_charts(api_key: str) -> Generator[ArtistChart, None, None]:
         data = resp.json()["artists"]
         total_pages = int(data["@attr"]["totalPages"])
 
-        for i, artist in enumerate(data["artist"]):
-            yield ArtistChart(
+        yield [
+            ArtistChart(
                 artist_mbid=artist.get("mbid") or None,
                 artist_name=artist["name"],
                 chart_week=week,
@@ -80,6 +79,8 @@ def fetch_charts(api_key: str) -> Generator[ArtistChart, None, None]:
                 listeners=int(artist["listeners"]),
                 playcount=int(artist["playcount"]),
             )
+            for i, artist in enumerate(data["artist"])
+        ]
 
         page += 1
         if page <= total_pages:
@@ -104,15 +105,15 @@ def _kafka_producer() -> Producer:
     })
 
 
-def publish_to_kafka(records: list[ArtistChart], topic: str) -> None:
-    """Serialise and produce ArtistChart records to a Kafka topic.
+def _publish_page(producer: Producer, records: list[ArtistChart], topic: str) -> None:
+    """Serialise and produce one page of ArtistChart records to Kafka.
 
-    Each record is serialised to JSON and produced asynchronously. Delivery
-    errors are collected via the on_delivery callback and raised as a single
-    RuntimeError after flush so no partial failures are silently swallowed.
+    Delivery errors are collected via the on_delivery callback and raised
+    after flush so no failures are silently swallowed.
 
     Args:
-        records: List of ArtistChart records to publish.
+        producer: Confluent Cloud producer instance (caller manages lifecycle).
+        records: Page of ArtistChart records to publish.
         topic: Kafka topic name to produce to.
 
     Raises:
@@ -124,35 +125,39 @@ def publish_to_kafka(records: list[ArtistChart], topic: str) -> None:
         if err:
             errors.append(str(err))
 
-    producer = _kafka_producer()
-    try:
-        for record in records:
-            producer.produce(
-                topic,
-                value=record.model_dump_json().encode(),
-                on_delivery=on_delivery,
-            )
-        producer.flush()
-        if errors:
-            raise RuntimeError(f"{len(errors)} messages failed delivery: {errors[:3]}")
-        logger.info("Published %d records to topic %s", len(records), topic)
-    finally:
-        producer.close()
+    for record in records:
+        producer.produce(
+            topic,
+            value=record.model_dump_json().encode(),
+            on_delivery=on_delivery,
+        )
+    producer.flush()
+
+    if errors:
+        raise RuntimeError(f"{len(errors)} messages failed delivery: {errors[:3]}")
 
 
 def main() -> None:
     """Entry point for the Last.fm producer Cloud Run Job.
 
-    Fetches all pages of the current chart.getTopArtists chart and publishes
-    every record to the configured Kafka topic for downstream consumption.
+    Fetches chart pages and publishes each page to Kafka immediately before
+    fetching the next. A timeout on page N means pages 1..N-1 are already
+    in Kafka; only page N onward is lost on a Cloud Run retry.
     """
     api_key = os.environ["LASTFM_API_KEY"]
     topic = os.environ["KAFKA_TOPIC_LASTFM"]
 
-    records = list(fetch_charts(api_key=api_key))
-    logger.info("Fetched %d chart records", len(records))
-
-    publish_to_kafka(records=records, topic=topic)
+    producer = _kafka_producer()
+    try:
+        total = 0
+        for page_num, page_records in enumerate(fetch_charts(api_key=api_key), start=1):
+            _publish_page(producer, page_records, topic)
+            total += len(page_records)
+            logger.info("Page %d: published %d records (running total: %d)",
+                        page_num, len(page_records), total)
+        logger.info("All pages published — %d records total to topic %s", total, topic)
+    finally:
+        producer.close()
 
 
 if __name__ == "__main__":

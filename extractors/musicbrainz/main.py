@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 BASE_URL = "https://data.metabrainz.org/pub/musicbrainz/data/json-dumps"
 ARCHIVE_NAME = "artist.tar.xz"
 GCS_BLOB = "raw/batch/musicbrainz/mb_artists.ndjson"
+MIN_ARTIST_RECORDS = 1_000_000  # MusicBrainz has ~2M artists; far fewer signals a partial extraction
 
 
 def get_latest_version() -> str:
@@ -137,6 +138,11 @@ def extract_and_filter(archive: Path, out: Path) -> int:
                     "_ingested_at": ingested_at,
                 }) + "\n")
                 count += 1
+    if count < MIN_ARTIST_RECORDS:
+        raise ValueError(
+            f"Only {count:,} artist records extracted — expected ≥{MIN_ARTIST_RECORDS:,}. "
+            "Possible partial extraction; refusing to stage incomplete data."
+        )
     logger.info("Extracted %d artist records", count)
     return count
 

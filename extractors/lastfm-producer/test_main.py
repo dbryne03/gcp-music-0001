@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from main import ArtistChart, PAGE_LIMIT, _chart_week, fetch_charts, publish_to_kafka
+from main import ArtistChart, PAGE_LIMIT, _chart_week, _publish_page, fetch_charts
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -47,18 +47,20 @@ def test_chart_week_format():
     assert re.match(r"^\d{4}-\d{2}-\d{2}$", _chart_week())
 
 
-# ── fetch_charts ──────────────────────────────────────────────────────────────
+# ── fetch_charts — yields pages ───────────────────────────────────────────────
 
-def test_fetch_charts_single_page():
+def test_fetch_charts_yields_page_as_list():
     artists = [_make_artist(f"Artist {i}", i) for i in range(1, 4)]
     mock_resp = MagicMock()
     mock_resp.json.return_value = _make_response(artists)
 
     with patch("main.requests.get", return_value=mock_resp):
-        records = list(fetch_charts("test-key"))
+        pages = list(fetch_charts("test-key"))
 
-    assert len(records) == 3
-    assert all(isinstance(r, ArtistChart) for r in records)
+    assert len(pages) == 1
+    assert isinstance(pages[0], list)
+    assert len(pages[0]) == 3
+    assert all(isinstance(r, ArtistChart) for r in pages[0])
 
 
 def test_fetch_charts_assigns_sequential_ranks():
@@ -67,12 +69,12 @@ def test_fetch_charts_assigns_sequential_ranks():
     mock_resp.json.return_value = _make_response(artists)
 
     with patch("main.requests.get", return_value=mock_resp):
-        records = list(fetch_charts("test-key"))
+        pages = list(fetch_charts("test-key"))
 
-    assert [r.rank for r in records] == [1, 2, 3]
+    assert [r.rank for r in pages[0]] == [1, 2, 3]
 
 
-def test_fetch_charts_paginates_across_pages():
+def test_fetch_charts_paginates_into_multiple_pages():
     page1 = [_make_artist(f"Artist {i}", i) for i in range(1, 4)]
     page2 = [_make_artist(f"Artist {i}", i) for i in range(4, 7)]
 
@@ -83,10 +85,12 @@ def test_fetch_charts_paginates_across_pages():
 
     with patch("main.requests.get", side_effect=responses), \
          patch("main.time.sleep"):
-        records = list(fetch_charts("test-key"))
+        pages = list(fetch_charts("test-key"))
 
-    assert len(records) == 6
-    assert records[3].rank == PAGE_LIMIT + 1
+    assert len(pages) == 2
+    assert len(pages[0]) == 3
+    assert len(pages[1]) == 3
+    assert pages[1][0].rank == PAGE_LIMIT + 1
 
 
 def test_fetch_charts_normalises_empty_mbid_to_none():
@@ -95,9 +99,9 @@ def test_fetch_charts_normalises_empty_mbid_to_none():
     mock_resp.json.return_value = _make_response(artists)
 
     with patch("main.requests.get", return_value=mock_resp):
-        records = list(fetch_charts("test-key"))
+        pages = list(fetch_charts("test-key"))
 
-    assert records[0].artist_mbid is None
+    assert pages[0][0].artist_mbid is None
 
 
 def test_fetch_charts_stamps_chart_week():
@@ -107,12 +111,12 @@ def test_fetch_charts_stamps_chart_week():
 
     with patch("main.requests.get", return_value=mock_resp), \
          patch("main._chart_week", return_value="2026-05-19"):
-        records = list(fetch_charts("test-key"))
+        pages = list(fetch_charts("test-key"))
 
-    assert records[0].chart_week == "2026-05-19"
+    assert pages[0][0].chart_week == "2026-05-19"
 
 
-# ── publish_to_kafka ──────────────────────────────────────────────────────────
+# ── _publish_page ─────────────────────────────────────────────────────────────
 
 def _make_records(n: int = 3) -> list[ArtistChart]:
     return [
@@ -128,22 +132,20 @@ def _make_records(n: int = 3) -> list[ArtistChart]:
     ]
 
 
-def test_publish_to_kafka_produces_all_records():
+def test_publish_page_produces_all_records():
     mock_producer = MagicMock()
 
-    with patch("main._kafka_producer", return_value=mock_producer):
-        publish_to_kafka(_make_records(3), "test-topic")
+    _publish_page(mock_producer, _make_records(3), "test-topic")
 
     assert mock_producer.produce.call_count == 3
     mock_producer.flush.assert_called_once()
 
 
-def test_publish_to_kafka_serialises_to_json():
+def test_publish_page_serialises_to_json():
     mock_producer = MagicMock()
     records = _make_records(1)
 
-    with patch("main._kafka_producer", return_value=mock_producer):
-        publish_to_kafka(records, "test-topic")
+    _publish_page(mock_producer, records, "test-topic")
 
     _, kwargs = mock_producer.produce.call_args
     payload = kwargs["value"]
@@ -151,7 +153,7 @@ def test_publish_to_kafka_serialises_to_json():
     assert b"Artist 1" in payload
 
 
-def test_publish_to_kafka_raises_on_delivery_failure():
+def test_publish_page_raises_on_delivery_failure():
     mock_producer = MagicMock()
 
     def fake_produce(topic, value, on_delivery):
@@ -161,6 +163,5 @@ def test_publish_to_kafka_raises_on_delivery_failure():
 
     mock_producer.produce.side_effect = fake_produce
 
-    with patch("main._kafka_producer", return_value=mock_producer):
-        with pytest.raises(RuntimeError, match="messages failed delivery"):
-            publish_to_kafka(_make_records(2), "test-topic")
+    with pytest.raises(RuntimeError, match="messages failed delivery"):
+        _publish_page(mock_producer, _make_records(2), "test-topic")

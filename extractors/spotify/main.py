@@ -14,6 +14,7 @@ REPO_ID = "maharshipandya/spotify-tracks-dataset"
 PARQUET_FILE = "default/train/0000.parquet"
 PARQUET_REVISION = "refs/convert/parquet"
 GCS_BLOB = "raw/batch/spotify/spotify_tracks.parquet"
+MIN_SPOTIFY_TRACKS = 100_000  # Dataset has ~114k tracks; fewer signals a corrupt download
 
 
 def download_parquet(local_dir: str) -> str:
@@ -56,7 +57,13 @@ def prepare(raw_path: str, out_path: str) -> None:
     df = df.drop(columns=["Unnamed: 0"], errors="ignore")
     df["_ingested_at"] = datetime.now(timezone.utc)
     df.to_parquet(out_path, index=False)
-    logger.info("Prepared %d rows → %s", len(df), out_path)
+    row_count = len(df)
+    if row_count < MIN_SPOTIFY_TRACKS:
+        raise ValueError(
+            f"Only {row_count:,} tracks in prepared Parquet — expected ≥{MIN_SPOTIFY_TRACKS:,}. "
+            "Possible corrupt download; refusing to stage incomplete dataset."
+        )
+    logger.info("Prepared %d rows → %s", row_count, out_path)
 
 
 def stage_to_gcs(local_path: str, bucket: str) -> None:

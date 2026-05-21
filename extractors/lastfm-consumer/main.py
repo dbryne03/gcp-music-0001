@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 GROUP_ID = "lastfm-consumer"
 GCS_BLOB_PREFIX = "raw/api/lastfm"
+GCS_DEAD_LETTER_PREFIX = "raw/api/lastfm/dead-letter"
 POLL_TIMEOUT = 5.0   # seconds per poll
 MAX_EMPTY_POLLS = 6  # 30 s of silence signals topic is drained
 
@@ -36,7 +37,7 @@ def _consumer() -> Consumer:
     })
 
 
-def drain(consumer: Consumer, topic: str) -> list[dict]:
+def drain(consumer: Consumer, topic: str) -> tuple[list[dict], list[dict]]:
     """Read all available messages from a Kafka topic and return them as records.
 
     Polls until MAX_EMPTY_POLLS consecutive empty polls are received, which
@@ -49,14 +50,15 @@ def drain(consumer: Consumer, topic: str) -> list[dict]:
         topic: Kafka topic name to subscribe to and drain.
 
     Returns:
-        List of parsed message payloads with _ingested_at added. Empty list
-        if no messages were available.
+        Tuple of (records, dead_letters). records contains valid parsed payloads
+        with _ingested_at added. dead_letters contains raw bytes of malformed
+        messages for staging to GCS dead-letter path.
 
     Raises:
         RuntimeError: If a non-EOF Kafka error is received during polling.
     """
     consumer.subscribe([topic])
-    records, empty_polls = [], 0
+    records, dead_letters, empty_polls = [], [], 0
     ingested_at = datetime.now(timezone.utc).isoformat()
 
     while empty_polls < MAX_EMPTY_POLLS:
@@ -77,13 +79,36 @@ def drain(consumer: Consumer, topic: str) -> list[dict]:
         try:
             record = json.loads(msg.value().decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-            logger.warning("Skipping malformed message at offset %s: %s", msg.offset(), exc)
+            logger.warning("Malformed message at offset %s — routing to dead-letter: %s",
+                           msg.offset(), exc)
+            dead_letters.append(msg.value())
             continue
         record["_ingested_at"] = ingested_at
         records.append(record)
 
-    logger.info("Drained %d records from %s", len(records), topic)
-    return records
+    logger.info("Drained %d records from %s (%d dead-lettered)",
+                len(records), topic, len(dead_letters))
+    return records, dead_letters
+
+
+def stage_dead_letters(dead_letters: list[bytes], bucket: str) -> None:
+    """Write malformed Kafka messages to a GCS dead-letter path for inspection.
+
+    Args:
+        dead_letters: Raw message bytes that failed JSON parsing.
+        bucket: GCS bucket name (without gs:// prefix).
+    """
+    if not dead_letters:
+        return
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    blob_name = f"{GCS_DEAD_LETTER_PREFIX}/{timestamp}.ndjson"
+    payload = b"\n".join(dead_letters)
+    client = storage.Client()
+    client.bucket(bucket).blob(blob_name).upload_from_string(
+        payload, content_type="application/x-ndjson"
+    )
+    logger.warning("Staged %d dead-letter messages to gs://%s/%s",
+                   len(dead_letters), bucket, blob_name)
 
 
 def stage_to_gcs(records: list[dict], bucket: str) -> str:
@@ -125,7 +150,9 @@ def main() -> None:
 
     consumer = _consumer()
     try:
-        records = drain(consumer, topic)
+        records, dead_letters = drain(consumer, topic)
+
+        stage_dead_letters(dead_letters, bucket)
 
         if not records:
             logger.warning("No records consumed — nothing to stage")
