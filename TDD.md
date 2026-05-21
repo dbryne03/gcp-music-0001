@@ -309,7 +309,7 @@ Each `TriggerDagRunOperator` uses `wait_for_completion=True` and `poke_interval=
 
 **Airflow 3.x compatibility notes**
 - `TriggerDagRunOperator` imported from `airflow.providers.standard.operators.trigger_dagrun` (moved from core in Airflow 3)
-- `GCSObjectExistenceSensor` uses `google_cloud_default` connection — `gcp_conn_id` parameter removed as it is not accepted in `apache-airflow-providers-google>=13.0.0`
+- `GCSObjectExistenceSensor` uses `google_cloud_default` connection — `gcp_conn_id` parameter not accepted in `apache-airflow-providers-google>=13.0.0`
 - `google_cloud_default` connection uses Workload Identity impersonation via the Astronomer deployment SA (`astro-continuous-horizon-8866@...`) → `music-airflow-sa`
 - Astronomer Cloud's Airflow 3 runtime adds `dags/` to `sys.path` automatically — plain `import config` works without any path manipulation
 
@@ -317,9 +317,9 @@ Each `TriggerDagRunOperator` uses `wait_for_completion=True` and `poke_interval=
 
 | File | Purpose |
 |:---|:---|
-| `Dockerfile` | Extends `quay.io/astronomer/astro-runtime:3.2-4-python-3.12`; `requirements.txt` is installed automatically |
+| `Dockerfile` | Extends `quay.io/astronomer/astro-runtime:3.2-4`; `requirements.txt` is installed automatically |
 | `packages.txt` | OS packages — empty but required by Astro Runtime ONBUILD |
-| `requirements.txt` | Providers pinned via the official Airflow 3.2.1 / Python 3.12 constraint file (`constraints-3.12.txt`) |
+| `requirements.txt` | `apache-airflow-providers-google` and `apache-airflow-providers-standard` — unversioned; uv resolves against the runtime's locked environment |
 | `.astro/config.yaml` | Marks directory as Astro project for CLI recognition |
 
 ---

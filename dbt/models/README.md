@@ -20,7 +20,7 @@ One model per raw source. Views in BigQuery — no storage cost.
 
 | Model | Source | Key responsibilities |
 |:---|:---|:---|
-| `stg_lastfm_charts` | `raw.lastfm` | Casts types, generates `chart_key` surrogate on `artist_name + chart_week` (not MBID — nullable in source) |
+| `stg_lastfm_charts` | `raw.lastfm` | Casts types, generates `chart_key` surrogate on `artist_name + chart_week`, deduplicates on `(artist_name, chart_week)` keeping the most recent ingestion |
 | `stg_mb_artists` | `raw.mb_dump` | Maps dump fields, parses partial date strings via `safe.parse_date`, validates `artist_type` |
 | `stg_spotify_tracks` | `raw.spotify` | Range tests on all 0–1 audio features, `popularity` 0–100, `key` 0–11 |
 
@@ -31,7 +31,7 @@ Ephemeral — compiled inline by the models that reference them; no BigQuery obj
 | Model | Description |
 |:---|:---|
 | `int_artist_resolution` | Cross-source artist matching. Primary path: MBID join. Fallback: normalised name join (`lower(regexp_replace(trim(name), r'[^a-z0-9 ]', ''))`) for artists without an MBID. `qualify row_number()` deduplicates one-to-many normalised name matches. `is_mb_verified` distinguishes both paths. |
-| `int_track_enriched` | Joins Spotify tracks to charting artists via `contains_substr()` on normalised artist name against the Spotify `artists` field. One row per Spotify track per matched chart artist. |
+| `int_track_enriched` | Joins Spotify tracks to charting artists via `INSTR(lower(artists), name_key) > 0` — case-insensitive substring match. One row per Spotify track per matched chart artist. |
 
 ## Mart (`mart/`)
 
@@ -54,5 +54,5 @@ dbt test
 Key test coverage:
 - `not_null` and `unique` on all primary keys
 - `accepted_values` on `artist_type` and `mode`
-- `dbt_utils.expression_is_true` for numeric range checks on audio features
+- `dbt_utils.accepted_range` for numeric range checks on audio features (0–1 scores, popularity, key, time signature)
 - Source freshness thresholds declared in `sources.yml`
