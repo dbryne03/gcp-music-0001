@@ -14,6 +14,8 @@ import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from airflow.utils.email import send_email
+
 logger = logging.getLogger(__name__)
 
 _SCHEMAS = Path(__file__).parent / "schemas"
@@ -79,6 +81,9 @@ DEFAULT_TASK_ARGS = {
 }
 
 
+# ── Alerting ──────────────────────────────────────────────────────────────────
+ALERT_EMAIL = "davidedeji25@gmail.com"
+
 # ── Failure callback ──────────────────────────────────────────────────────────
 def on_pipeline_failure(context: dict) -> None:
     """Log a structured failure alert when any task in a pipeline fails.
@@ -117,4 +122,17 @@ def on_pipeline_failure(context: dict) -> None:
             "PIPELINE FAILURE — dag=%s task=%s run=%s exception=%s",
             dag_id, task_id, run_id, exc,
         )
-    # TODO: add Slack / email alert here
+    try:
+        send_email(
+            to=ALERT_EMAIL,
+            subject=f"[gcp-music-0001] Pipeline failure — {dag_id} / {task_id}",
+            html_content=(
+                f"<h3>Pipeline failure</h3>"
+                f"<p><b>DAG:</b> {dag_id}<br>"
+                f"<b>Task:</b> {task_id}<br>"
+                f"<b>Run:</b> {run_id}<br>"
+                f"<b>Error:</b> {exc}</p>"
+            ),
+        )
+    except Exception as email_exc:
+        logger.error("Failed to send failure email: %s", email_exc)
