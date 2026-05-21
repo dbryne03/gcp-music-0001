@@ -55,8 +55,7 @@ jobs:
               - 'extractors/**'
             images:
               - 'extractors/**'
-              - 'dbt/Dockerfile'
-              - 'dbt/requirements.txt'
+              - 'dbt/**'
               - 'requirements.txt'
               - 'Dockerfile'
               - 'packages.txt'

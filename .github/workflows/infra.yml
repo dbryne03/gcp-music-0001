@@ -40,6 +40,7 @@ jobs:
           filters: |
             infra:
               - 'infra/**'
+              - 'dags/schemas/**'
 
   provision:
     name: Deploy / Provision infrastructure
