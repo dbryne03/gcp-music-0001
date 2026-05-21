@@ -1,7 +1,7 @@
 # Technical Design Document — gcp-music-0001
 
 **Status:** In Development  
-**Last updated:** 2026-05-20  
+**Last updated:** 2026-05-21  
 **Author:** David Bryne Adedeji
 
 ---
@@ -283,7 +283,7 @@ flowchart TD
 
     subgraph music_transform["music_transform (schedule: None)"]
         direction LR
-        RD["run_dbt"] --> TD["test_dbt"]
+        CF["check_source_freshness"] --> RD["run_dbt"] --> TD["test_dbt"]
     end
 
     TL -->|TriggerDagRunOperator\nwait_for_completion=True| lastfm_pipeline
@@ -390,7 +390,7 @@ dags/schemas/           BigQuery raw table schema definitions (shared with infra
 - Uniform bucket-level access — no per-object ACLs
 - Each service account is scoped to its specific operations; no SA has project-wide owner or editor
 - `DEPLOY_SHA` in `deploy/jobs.sh` is validated as a 40-character hex SHA before use as a Docker image tag
-- Known gap: `github-actions-sa` holds `bigquery.admin` and `resourcemanager.projectIamAdmin` — high blast-radius roles required for bootstrapping. Recommend replacing with custom roles or narrower bindings once the infrastructure is stable
+- `bigquery.admin` and `resourcemanager.projectIamAdmin` removed from `github-actions-sa` — project-level IAM for pipeline SAs is handled by `_project_iam.sh` (manual-only). CI holds only the narrower roles required for provisioning and deployment
 
 **GitHub Actions**
 - Global `permissions: contents: read`; deploy jobs explicitly elevate to `id-token: write`
@@ -430,7 +430,21 @@ Commit SHA and PR title/commit message propagate through all three workflows via
 
 ---
 
-## 11. Open Items
+## 11. Alerting
+
+Pipeline failures trigger an email alert to the configured `ALERT_EMAIL` address via Airflow's SMTP backend. The `on_pipeline_failure` callback distinguishes three failure classes and emits structured log entries alongside the email:
+
+| Task | Log prefix | Meaning |
+|:---|:---|:---|
+| `check_source_freshness` | `STALE SOURCE DATA` | One or more raw tables were not loaded within the freshness threshold |
+| `test_dbt` | `DATA QUALITY FAILURE` | dbt tests failed — data quality regression |
+| Any other task | `PIPELINE FAILURE` | Infrastructure or extraction error |
+
+Email delivery uses Gmail SMTP with an App Password. The required Airflow environment variables are set in the Astronomer deployment (`AIRFLOW__SMTP__*`). Email send is best-effort — a delivery failure is logged but does not mask the original task failure.
+
+---
+
+## 12. Open Items
 
 | Area | Item |
 |:---|:---|

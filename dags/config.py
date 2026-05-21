@@ -22,7 +22,19 @@ _SCHEMAS = Path(__file__).parent / "schemas"
 
 
 def load_schema(name: str) -> list:
-    """Load a BigQuery table schema from dags/schemas/{name}.json."""
+    """Load a BigQuery table schema from dags/schemas/{name}.json.
+
+    Args:
+        name: Schema file stem, e.g. ``"lastfm"`` loads ``dags/schemas/lastfm.json``.
+
+    Returns:
+        List of BigQuery field descriptor dicts suitable for passing to
+        ``GCSToBigQueryOperator(schema_fields=...)``.
+
+    Raises:
+        FileNotFoundError: If no matching schema file exists under ``dags/schemas/``.
+        json.JSONDecodeError: If the schema file contains invalid JSON.
+    """
     return json.loads((_SCHEMAS / f"{name}.json").read_text())
 
 
@@ -86,12 +98,13 @@ ALERT_EMAIL = "davidedeji25@gmail.com"
 
 # ── Failure callback ──────────────────────────────────────────────────────────
 def on_pipeline_failure(context: dict) -> None:
-    """Log a structured failure alert when any task in a pipeline fails.
+    """Log a structured failure alert and send an email when any task fails.
 
-    Called by Airflow after all retries are exhausted. The log entry is
-    structured to make failures easy to query in Cloud Logging. Extend this
-    function to emit Slack or email notifications when an alerting integration
-    is added.
+    Called by Airflow after all retries are exhausted. Emits a structured log
+    entry for Cloud Logging and delivers an HTML email to ``ALERT_EMAIL`` via
+    the SMTP backend configured in the Airflow environment. The email send is
+    best-effort — a failure to deliver is logged but does not raise so it
+    cannot mask the original pipeline failure.
 
     Args:
         context: Airflow task context dictionary provided by the scheduler.

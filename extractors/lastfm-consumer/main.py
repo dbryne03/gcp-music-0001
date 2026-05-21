@@ -24,6 +24,10 @@ def _consumer() -> Consumer:
 
     Returns:
         A configured confluent_kafka Consumer ready to subscribe.
+
+    Raises:
+        KeyError: If any of ``KAFKA_BOOTSTRAP_SERVERS``, ``KAFKA_API_KEY``, or
+            ``KAFKA_API_SECRET`` are absent from the environment.
     """
     return Consumer({
         "bootstrap.servers": os.environ["KAFKA_BOOTSTRAP_SERVERS"],
@@ -37,7 +41,7 @@ def _consumer() -> Consumer:
     })
 
 
-def drain(consumer: Consumer, topic: str) -> tuple[list[dict], list[dict]]:
+def drain(consumer: Consumer, topic: str) -> tuple[list[dict], list[bytes]]:
     """Read all available messages from a Kafka topic and return them as records.
 
     Polls until MAX_EMPTY_POLLS consecutive empty polls are received, which
@@ -50,9 +54,9 @@ def drain(consumer: Consumer, topic: str) -> tuple[list[dict], list[dict]]:
         topic: Kafka topic name to subscribe to and drain.
 
     Returns:
-        Tuple of (records, dead_letters). records contains valid parsed payloads
-        with _ingested_at added. dead_letters contains raw bytes of malformed
-        messages for staging to GCS dead-letter path.
+        Tuple of ``(records, dead_letters)``. ``records`` is a list of parsed
+        dicts with ``_ingested_at`` stamped. ``dead_letters`` is a list of raw
+        ``bytes`` values for malformed messages, staged separately to GCS.
 
     Raises:
         RuntimeError: If a non-EOF Kafka error is received during polling.
@@ -94,9 +98,13 @@ def drain(consumer: Consumer, topic: str) -> tuple[list[dict], list[dict]]:
 def stage_dead_letters(dead_letters: list[bytes], bucket: str) -> None:
     """Write malformed Kafka messages to a GCS dead-letter path for inspection.
 
+    A timestamped NDJSON blob is written under ``raw/api/lastfm/dead-letter/``
+    so that malformed messages can be inspected and replayed without blocking
+    the main ingestion path. Does nothing if ``dead_letters`` is empty.
+
     Args:
-        dead_letters: Raw message bytes that failed JSON parsing.
-        bucket: GCS bucket name (without gs:// prefix).
+        dead_letters: Raw message bytes that failed JSON parsing or UTF-8 decoding.
+        bucket: GCS bucket name (without ``gs://`` prefix).
     """
     if not dead_letters:
         return
@@ -114,17 +122,17 @@ def stage_dead_letters(dead_letters: list[bytes], bucket: str) -> None:
 def stage_to_gcs(records: list[dict], bucket: str) -> str:
     """Write a batch of chart records to GCS as NDJSON.
 
-    The output path is derived from the chart_week field of the first record,
+    The output path is derived from the ``chart_week`` field of the first record,
     producing a predictable blob name that the downstream Airflow
-    GCSObjectExistenceSensor can target without dynamic path resolution.
+    ``GCSObjectExistenceSensor`` can target without dynamic path resolution.
 
     Args:
         records: Non-empty list of chart record dicts, each containing a
-            chart_week field in YYYY-MM-DD format.
-        bucket: GCS bucket name (without gs:// prefix).
+            ``chart_week`` field in ``YYYY-MM-DD`` format.
+        bucket: GCS bucket name (without ``gs://`` prefix).
 
     Returns:
-        The full blob name written, e.g. raw/api/lastfm/2026-05-19.ndjson.
+        Full blob name written, e.g. ``raw/api/lastfm/2026-05-19.ndjson``.
     """
     chart_week = records[0]["chart_week"]
     blob_name = f"{GCS_BLOB_PREFIX}/{chart_week}.ndjson"
@@ -141,9 +149,11 @@ def stage_to_gcs(records: list[dict], bucket: str) -> str:
 def main() -> None:
     """Entry point for the Last.fm Kafka consumer Cloud Run Job.
 
-    Drains the Last.fm charts topic, writes records to GCS, and commits
-    offsets only after a successful write. If the topic is empty the job
-    exits cleanly without writing anything.
+    Drains the Last.fm charts topic, routes malformed messages to the GCS
+    dead-letter path, writes valid records to GCS as NDJSON, and commits
+    offsets only after a successful write. If the topic is empty the job exits
+    cleanly without writing anything. The consumer is always closed, even on
+    failure, to release the consumer group membership.
     """
     bucket = os.environ["GCS_BUCKET_RAW"]
     topic = os.environ["KAFKA_TOPIC_LASTFM"]

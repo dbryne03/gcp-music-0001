@@ -97,20 +97,25 @@ bash infra/deploy/jobs.sh
 
 ---
 
-## Required GitHub secret
+## GitHub Actions authentication
 
-| Secret | Description |
+GitHub Actions uses **Workload Identity Federation** (OIDC) — no long-lived JSON keys.
+The WIF pool and provider are configured once by `provision/_wif.sh` (manual-only).
+
+Required GitHub Actions variables (set in repo → Settings → Secrets and variables → Actions):
+
+| Variable / Secret | Value |
 |:---|:---|
-| `SERVICE_ACCOUNT` | JSON key for `github-actions-sa` |
+| `WIF_PROVIDER` | Full WIF provider resource name (from `config.env`) |
+| `GITHUB_SA` | `github-actions-sa@portfolio-hub-2026.iam.gserviceaccount.com` |
 
-The `github-actions-sa` requires the following project-level roles:
+The `github-actions-sa` holds the following project-level roles:
 `serviceusage.serviceUsageAdmin`, `storage.admin`, `bigquery.dataOwner`,
 `bigquery.jobUser`, `artifactregistry.admin`, `secretmanager.admin`,
 `iam.serviceAccountAdmin`, `run.admin`.
 
-`bigquery.admin` and `resourcemanager.projectIamAdmin` have been removed
-(high blast-radius). Project-level IAM for pipeline SAs is handled by
-`_project_iam.sh` (manual).
+Project-level IAM for the pipeline service accounts (`music-cloudrun-sa`, `music-airflow-sa`)
+is managed by `_project_iam.sh` (manual-only, not granted to CI).
 
 ---
 
