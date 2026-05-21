@@ -7,24 +7,21 @@ sources:
     tables:
       - name: lastfm
         description: Last.fm chart records loaded from the Kafka consumer NDJSON files
-        config:
-          loaded_at_field: _ingested_at
-          freshness:
-            warn_after:  { count: 32, period: day }
-            error_after: { count: 35, period: day }
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after:  { count: 32, period: day }
+          error_after: { count: 35, period: day }
 
       - name: mb_dump
         description: MusicBrainz artist dump — filtered to pipeline fields
-        config:
-          loaded_at_field: _ingested_at
-          freshness:
-            warn_after:  { count: 32, period: day }
-            error_after: { count: 35, period: day }
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after:  { count: 32, period: day }
+          error_after: { count: 35, period: day }
 
       - name: spotify
         description: Spotify tracks dataset — audio features per track
-        config:
-          loaded_at_field: _ingested_at
-          freshness:
-            warn_after:  { count: 32, period: day }
-            error_after: { count: 35, period: day }
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after:  { count: 32, period: day }
+          error_after: { count: 35, period: day }

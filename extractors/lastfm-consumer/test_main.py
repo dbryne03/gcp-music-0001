@@ -27,15 +27,16 @@ def _chart_record(name: str = "Artist", week: str = "2026-05-19") -> dict:
 
 # ── drain ─────────────────────────────────────────────────────────────────────
 
-def test_drain_returns_all_messages():
-    records = [_chart_record(f"Artist {i}") for i in range(3)]
-    msgs = [_make_msg(r) for r in records] + [None] * 6
+def test_drain_returns_all_valid_messages():
+    records_in = [_chart_record(f"Artist {i}") for i in range(3)]
+    msgs = [_make_msg(r) for r in records_in] + [None] * 6
 
     mock_consumer = MagicMock()
     mock_consumer.poll.side_effect = msgs
 
-    result = drain(mock_consumer, "lastfm.charts")
-    assert len(result) == 3
+    records, dead_letters = drain(mock_consumer, "lastfm.charts")
+    assert len(records) == 3
+    assert dead_letters == []
 
 
 def test_drain_adds_ingested_at():
@@ -44,19 +45,19 @@ def test_drain_adds_ingested_at():
     mock_consumer = MagicMock()
     mock_consumer.poll.side_effect = msgs
 
-    result = drain(mock_consumer, "lastfm.charts")
-    assert "_ingested_at" in result[0]
+    records, _ = drain(mock_consumer, "lastfm.charts")
+    assert "_ingested_at" in records[0]
 
 
 def test_drain_stamps_consistent_ingested_at():
-    records = [_chart_record(f"Artist {i}") for i in range(3)]
-    msgs = [_make_msg(r) for r in records] + [None] * 6
+    records_in = [_chart_record(f"Artist {i}") for i in range(3)]
+    msgs = [_make_msg(r) for r in records_in] + [None] * 6
 
     mock_consumer = MagicMock()
     mock_consumer.poll.side_effect = msgs
 
-    result = drain(mock_consumer, "lastfm.charts")
-    timestamps = {r["_ingested_at"] for r in result}
+    records, _ = drain(mock_consumer, "lastfm.charts")
+    timestamps = {r["_ingested_at"] for r in records}
     assert len(timestamps) == 1
 
 
@@ -64,16 +65,36 @@ def test_drain_returns_empty_on_no_messages():
     mock_consumer = MagicMock()
     mock_consumer.poll.return_value = None
 
-    result = drain(mock_consumer, "lastfm.charts")
-    assert result == []
+    records, dead_letters = drain(mock_consumer, "lastfm.charts")
+    assert records == []
+    assert dead_letters == []
+
+
+def test_drain_routes_malformed_message_to_dead_letters():
+    bad_msg = MagicMock()
+    bad_msg.error.return_value = None
+    bad_msg.value.return_value = b"not-json"
+    bad_msg.offset.return_value = 42
+
+    msgs = [bad_msg] + [None] * 6
+
+    mock_consumer = MagicMock()
+    mock_consumer.poll.side_effect = msgs
+
+    records, dead_letters = drain(mock_consumer, "lastfm.charts")
+    assert records == []
+    assert dead_letters == [b"not-json"]
 
 
 def test_drain_raises_on_kafka_error():
     mock_error = MagicMock()
     mock_error.code.return_value = KafkaError.UNKNOWN_TOPIC_OR_PART
 
+    error_msg = MagicMock()
+    error_msg.error.return_value = mock_error
+
     mock_consumer = MagicMock()
-    mock_consumer.poll.return_value = _make_msg({}, error=mock_error)
+    mock_consumer.poll.return_value = error_msg
 
     with pytest.raises(RuntimeError, match="Kafka error"):
         drain(mock_consumer, "lastfm.charts")

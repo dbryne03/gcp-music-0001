@@ -9,6 +9,7 @@ models:
       row with track_id as a deterministic tiebreaker.
     columns:
       - name: track_key
+        description: Surrogate key on track_id
         tests: [unique, not_null]
       - name: track_id
         description: Spotify track URI
@@ -20,6 +21,7 @@ models:
         tests: [not_null]
       - name: album_name
       - name: track_genre
+        description: Genre label from the Spotify dataset — nullable when no genre is assigned
       - name: popularity
         description: Spotify popularity score 0–100
         tests:
