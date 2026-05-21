@@ -25,6 +25,7 @@ with DAG(
         project_id=config.GCP_PROJECT,
         region=config.GCP_REGION,
         job_name=config.JOB_LASTFM_PRODUCER,
+        gcp_conn_id=config.GCP_CONN_ID,
     )
 
     consume = CloudRunExecuteJobOperator(

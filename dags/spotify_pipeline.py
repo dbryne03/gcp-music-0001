@@ -19,6 +19,7 @@ with DAG(
         project_id=config.GCP_PROJECT,
         region=config.GCP_REGION,
         job_name=config.JOB_SPOTIFY,
+        gcp_conn_id=config.GCP_CONN_ID,
     )
 
     wait = GCSObjectExistenceSensor(
