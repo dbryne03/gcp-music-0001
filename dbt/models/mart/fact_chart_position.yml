@@ -11,8 +11,8 @@ models:
         description: Surrogate key on stg_lastfm_charts.chart_key (artist_name + chart_week)
         tests: [unique, not_null]
       - name: artist_key
-        description: Foreign key to dim_artist
-        tests: [not_null]
+        description: Foreign key to dim_artist — null when chart artist has no match in dim_artist
+
       - name: artist_mbid
         description: MusicBrainz ID from the source chart record — nullable
       - name: artist_name

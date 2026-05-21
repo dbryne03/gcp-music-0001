@@ -55,6 +55,7 @@ models:
         tests:
           - accepted_values:
               values: [0, 1]
+              quote: false
       - name: speechiness
         description: Speechiness 0–1
         tests:
@@ -88,8 +89,8 @@ models:
       - name: tempo
         description: Estimated beats per minute
       - name: time_signature
-        description: Estimated time signature (beats per bar), typically 3–7
+        description: Estimated time signature (beats per bar) — Spotify allows 0–11
         tests:
           - dbt_utils.accepted_range:
-              min_value: 3
-              max_value: 7
+              min_value: 0
+              max_value: 11

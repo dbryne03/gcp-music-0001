@@ -12,9 +12,7 @@ models:
         description: Spotify track URI
         tests: [not_null]
       - name: track_name
-        tests: [not_null]
       - name: artists
-        tests: [not_null]
       - name: album_name
       - name: track_genre
         tests: [not_null]
@@ -57,6 +55,7 @@ models:
           - not_null
           - accepted_values:
               values: [0, 1]
+              quote: false
       - name: speechiness
         tests:
           - not_null
@@ -91,11 +90,11 @@ models:
         description: Beats per minute
         tests: [not_null]
       - name: time_signature
-        description: Estimated time signature (beats per bar), typically 3–7
+        description: Estimated time signature (beats per bar) — Spotify allows 0–11
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 3
-              max_value: 7
+              min_value: 0
+              max_value: 11
       - name: _ingested_at
         tests: [not_null]

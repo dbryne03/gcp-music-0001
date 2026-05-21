@@ -10,8 +10,8 @@ models:
       artists who carry no MBID. is_mb_verified distinguishes both paths.
     columns:
       - name: artist_mbid
-        description: MusicBrainz ID — canonical key; nullable only when no MBID or name match found
-        tests: [unique, not_null]
+        description: MusicBrainz ID — nullable when no MBID or name match found in MusicBrainz
+        tests: [unique]
       - name: artist_name
         description: Artist display name — always non-null, used as the deduplication key
         tests: [not_null]
