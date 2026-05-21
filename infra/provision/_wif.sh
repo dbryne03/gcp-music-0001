@@ -7,7 +7,7 @@
 # provider is a security anti-pattern).
 #
 # Run once with owner-level credentials:
-#   bash infra/provision/wif.sh
+#   bash infra/provision/_wif.sh
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 set -a; source "${SCRIPT_DIR}/../config.env"; set +a
