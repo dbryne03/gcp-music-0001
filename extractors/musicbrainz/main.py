@@ -111,6 +111,9 @@ def extract_and_filter(archive: Path, out: Path) -> int:
 
     Returns:
         Number of artist records written.
+
+    Raises:
+        FileNotFoundError: If no ``artist`` member is found inside the archive.
     """
     count = 0
     ingested_at = datetime.now(timezone.utc).isoformat()
@@ -138,11 +141,6 @@ def extract_and_filter(archive: Path, out: Path) -> int:
                     "_ingested_at": ingested_at,
                 }) + "\n")
                 count += 1
-    if count < MIN_ARTIST_RECORDS:
-        raise ValueError(
-            f"Only {count:,} artist records extracted — expected ≥{MIN_ARTIST_RECORDS:,}. "
-            "Possible partial extraction; refusing to stage incomplete data."
-        )
     logger.info("Extracted %d artist records", count)
     return count
 
@@ -168,7 +166,9 @@ def main() -> None:
     cleaned up automatically on exit.
 
     Raises:
-        ValueError: If the downloaded archive fails the SHA256 checksum.
+        ValueError: If the downloaded archive fails the SHA256 checksum, or if
+            fewer than ``MIN_ARTIST_RECORDS`` records are extracted (signals a
+            partial extraction).
     """
     bucket = os.environ["GCS_BUCKET_RAW"]
 
@@ -186,7 +186,12 @@ def main() -> None:
         logger.info("Checksum verified")
 
         ndjson = tmp / "mb_artists.ndjson"
-        extract_and_filter(archive, ndjson)
+        count = extract_and_filter(archive, ndjson)
+        if count < MIN_ARTIST_RECORDS:
+            raise ValueError(
+                f"Only {count:,} artist records extracted — expected ≥{MIN_ARTIST_RECORDS:,}. "
+                "Possible partial extraction; refusing to stage incomplete data."
+            )
         stage_to_gcs(ndjson, bucket)
 
 

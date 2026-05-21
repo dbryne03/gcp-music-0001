@@ -41,7 +41,7 @@ def download_parquet(local_dir: str) -> str:
     )
 
 
-def prepare(raw_path: str, out_path: str) -> None:
+def prepare(raw_path: str, out_path: str) -> int:
     """Clean the raw Parquet and stamp an ingestion timestamp.
 
     Drops the serialised DataFrame index column (Unnamed: 0) that the
@@ -52,18 +52,17 @@ def prepare(raw_path: str, out_path: str) -> None:
     Args:
         raw_path: Path to the downloaded raw Parquet file.
         out_path: Path to write the prepared Parquet file to.
+
+    Returns:
+        Number of rows in the prepared Parquet file.
     """
     df = pd.read_parquet(raw_path)
     df = df.drop(columns=["Unnamed: 0"], errors="ignore")
     df["_ingested_at"] = datetime.now(timezone.utc)
     df.to_parquet(out_path, index=False)
     row_count = len(df)
-    if row_count < MIN_SPOTIFY_TRACKS:
-        raise ValueError(
-            f"Only {row_count:,} tracks in prepared Parquet — expected ≥{MIN_SPOTIFY_TRACKS:,}. "
-            "Possible corrupt download; refusing to stage incomplete dataset."
-        )
     logger.info("Prepared %d rows → %s", row_count, out_path)
+    return row_count
 
 
 def stage_to_gcs(local_path: str, bucket: str) -> None:
@@ -85,12 +84,21 @@ def main() -> None:
     column artefact, stamps an ingestion timestamp, and stages the result
     to GCS as a single Parquet file. All intermediate files are written to
     a temporary directory that is cleaned up automatically on exit.
+
+    Raises:
+        ValueError: If fewer than ``MIN_SPOTIFY_TRACKS`` rows are present after
+            preparation (signals a corrupt or incomplete download).
     """
     bucket = os.environ["GCS_BUCKET_RAW"]
     with tempfile.TemporaryDirectory() as tmp:
         raw_path = download_parquet(tmp)
         out_path = str(Path(tmp) / "spotify_tracks.parquet")
-        prepare(raw_path, out_path)
+        row_count = prepare(raw_path, out_path)
+        if row_count < MIN_SPOTIFY_TRACKS:
+            raise ValueError(
+                f"Only {row_count:,} tracks in prepared Parquet — expected ≥{MIN_SPOTIFY_TRACKS:,}. "
+                "Possible corrupt download; refusing to stage incomplete dataset."
+            )
         stage_to_gcs(out_path, bucket)
 
 
