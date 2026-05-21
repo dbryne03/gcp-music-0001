@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Creates service accounts and applies all IAM bindings.
+# Creates service accounts and applies resource-scoped IAM bindings.
+# Requires: storage.admin, secretmanager.admin, iam.serviceAccountAdmin,
+#   run.admin (for SA creation), artifactregistry.admin.
+# Project-level bindings for pipeline SAs live in _project_iam.sh (manual).
 # add-iam-policy-binding calls are idempotent — no pre-check needed.
 set -euo pipefail
 set -a; source "$(dirname "${BASH_SOURCE[0]}")/../config.env"; set +a
@@ -25,25 +28,14 @@ done
 
 echo "=== IAM ==="
 
-# cloudrun-sa — GCS
+# cloudrun-sa — GCS (bucket-scoped)
 gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
     --project="${PROJECT}" \
     --member="serviceAccount:${CLOUDRUN_SA}" \
     --role="roles/storage.objectAdmin"
 echo "  [ok]  cloudrun-sa → storage.objectAdmin on ${BUCKET}"
 
-# cloudrun-sa — BigQuery
-gcloud projects add-iam-policy-binding "${PROJECT}" \
-    --member="serviceAccount:${CLOUDRUN_SA}" \
-    --role="roles/bigquery.dataEditor" --condition=None
-echo "  [ok]  cloudrun-sa → bigquery.dataEditor"
-
-gcloud projects add-iam-policy-binding "${PROJECT}" \
-    --member="serviceAccount:${CLOUDRUN_SA}" \
-    --role="roles/bigquery.jobUser" --condition=None
-echo "  [ok]  cloudrun-sa → bigquery.jobUser"
-
-# cloudrun-sa — Secret Manager
+# cloudrun-sa — Secret Manager (secret-scoped)
 for SECRET in lastfm-api-key kafka-bootstrap-servers kafka-api-key kafka-api-secret; do
     gcloud secrets add-iam-policy-binding "${SECRET}" \
         --project="${PROJECT}" \
@@ -52,41 +44,21 @@ for SECRET in lastfm-api-key kafka-bootstrap-servers kafka-api-key kafka-api-sec
 done
 echo "  [ok]  cloudrun-sa → secretmanager.secretAccessor on all secrets"
 
-# airflow-sa
-gcloud projects add-iam-policy-binding "${PROJECT}" \
-    --member="serviceAccount:${AIRFLOW_SA}" \
-    --role="roles/run.invoker" --condition=None
-echo "  [ok]  airflow-sa → run.invoker"
-
-gcloud projects add-iam-policy-binding "${PROJECT}" \
-    --member="serviceAccount:${AIRFLOW_SA}" \
-    --role="roles/run.developer" --condition=None
-echo "  [ok]  airflow-sa → run.developer (required for run.operations.get)"
-
+# airflow-sa — GCS (bucket-scoped)
 gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
     --project="${PROJECT}" \
     --member="serviceAccount:${AIRFLOW_SA}" \
     --role="roles/storage.objectViewer"
 echo "  [ok]  airflow-sa → storage.objectViewer on ${BUCKET}"
 
-gcloud projects add-iam-policy-binding "${PROJECT}" \
-    --member="serviceAccount:${AIRFLOW_SA}" \
-    --role="roles/bigquery.jobUser" --condition=None
-echo "  [ok]  airflow-sa → bigquery.jobUser"
-
-gcloud projects add-iam-policy-binding "${PROJECT}" \
-    --member="serviceAccount:${AIRFLOW_SA}" \
-    --role="roles/bigquery.dataEditor" --condition=None
-echo "  [ok]  airflow-sa → bigquery.dataEditor"
-
-# github-actions-sa — actAs on cloudrun-sa for job creation
+# github-actions-sa — actAs on cloudrun-sa (SA-scoped)
 gcloud iam service-accounts add-iam-policy-binding "${CLOUDRUN_SA}" \
     --member="serviceAccount:${GITHUB_SA}" \
     --role="roles/iam.serviceAccountUser" \
     --project="${PROJECT}"
 echo "  [ok]  github-actions-sa → serviceAccountUser on music-cloudrun-sa"
 
-# Astronomer workload identity — impersonate airflow-sa for GCS/BQ connections
+# Astronomer workload identity — SA-scoped impersonation
 gcloud iam service-accounts add-iam-policy-binding "${AIRFLOW_SA}" \
     --member="serviceAccount:${ASTRO_SA}" \
     --role="roles/iam.serviceAccountTokenCreator" \

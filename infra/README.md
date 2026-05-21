@@ -31,7 +31,8 @@ infra/
     bigquery.sh         BigQuery datasets and raw tables                 [auto]
     registry.sh         Artifact Registry repository                     [auto]
     secrets.sh          Secret Manager secret placeholders               [auto]
-    iam.sh              Service accounts and IAM bindings                [auto]
+    iam.sh              Service accounts + resource-scoped IAM bindings  [auto]
+    _project_iam.sh     Project-level IAM bindings for pipeline SAs      [manual]
     _wif.sh             Workload Identity Federation setup               [manual]
   deploy/
     jobs.sh             Cloud Run Jobs — create on first run, update image on re-run
@@ -103,9 +104,13 @@ bash infra/deploy/jobs.sh
 | `SERVICE_ACCOUNT` | JSON key for `github-actions-sa` |
 
 The `github-actions-sa` requires the following project-level roles:
-`serviceusage.serviceUsageAdmin`, `storage.admin`, `bigquery.admin`,
-`artifactregistry.admin`, `secretmanager.admin`, `iam.serviceAccountAdmin`,
-`resourcemanager.projectIamAdmin`, `run.admin`.
+`serviceusage.serviceUsageAdmin`, `storage.admin`, `bigquery.dataOwner`,
+`bigquery.jobUser`, `artifactregistry.admin`, `secretmanager.admin`,
+`iam.serviceAccountAdmin`, `run.admin`.
+
+`bigquery.admin` and `resourcemanager.projectIamAdmin` have been removed
+(high blast-radius). Project-level IAM for pipeline SAs is handled by
+`_project_iam.sh` (manual).
 
 ---
 
