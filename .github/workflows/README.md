@@ -59,7 +59,7 @@ All workflows that touch GCP use **Workload Identity Federation** (OIDC):
     service_account: ${{ env.GITHUB_SA }}
 ```
 
-No long-lived JSON keys are stored in GitHub Secrets. The WIF pool and provider are set up once by `infra/provision/_wif.sh` (manual-only).
+No long-lived JSON keys are stored in GitHub Secrets. The WIF pool and provider are configured in `infra/provision/_wif.sh` (manual-only).
 
 ## Permissions
 

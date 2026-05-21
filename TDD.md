@@ -198,7 +198,7 @@ gs://portfolio-hub-2026-music-raw/
 | `raw` | `lastfm`, `mb_dump`, `spotify` | GCS load targets — schema defined in `infra/schemas/*.json` |
 | `music` | dbt mart models | Dimensional models consumed by reporting |
 
-Table schemas are defined in `infra/schemas/*.json` — single source of truth used by both `infra/provision/bigquery.sh` (table creation) and the Airflow DAGs (`GCSToBigQueryOperator`).
+Table schemas are defined in `dags/schemas/*.json` — single source of truth used by both `infra/provision/bigquery.sh` (table creation) and the Airflow DAGs (`GCSToBigQueryOperator`).
 
 ---
 
@@ -230,18 +230,18 @@ flowchart TD
 
 ### Model notes
 
-**Staging** — all fully implemented
+**Staging**
 
 - `stg_lastfm_charts` — casts types, generates `chart_key` surrogate on `artist_name + chart_week` (not MBID, which is nullable), passes through `_ingested_at`
-- `stg_mb_artists` — maps confirmed dump fields; parses `begin_date`/`end_date` strings via `safe.parse_date`; `artist_type` validated with `accepted_values`
-- `stg_spotify_tracks` — full confirmed schema from HuggingFace dataset inspection; range tests on all 0–1 audio features, `popularity` 0–100, `key` 0–11, `mode` accepted_values [0, 1]
+- `stg_mb_artists` — maps dump fields; parses `begin_date`/`end_date` strings via `safe.parse_date`; `artist_type` validated with `accepted_values`
+- `stg_spotify_tracks` — range tests on all 0–1 audio features, `popularity` 0–100, `key` 0–11, `mode` accepted_values [0, 1]
 
-**Intermediate** — fully implemented
+**Intermediate**
 
 - `int_artist_resolution` — MBID join is the primary resolution path. For artists without an MBID, a second left join on normalised name (`lower(regexp_replace(trim(name), r'[^a-z0-9 ]', ''))`) fires as a fallback. `qualify row_number()` deduplicates cases where a single normalised name maps to multiple MusicBrainz records. `is_mb_verified` distinguishes both paths.
 - `int_track_enriched` — joins Spotify tracks to Last.fm charting artists via `contains_substr()` on normalised artist name against the Spotify `artists` field. One row per Spotify track per matched chart artist; `dim_track` deduplicates on `track_id`.
 
-**Mart** — fully implemented
+**Mart**
 
 - `dim_artist` — one row per artist, MBID as natural key, surrogate `artist_key`
 - `dim_track` — one row per `track_id`, full Spotify audio feature set. Deduplicates `int_track_enriched` on `track_id`, taking the highest-popularity row
@@ -334,15 +334,16 @@ GCP resources are provisioned by focused shell scripts in `infra/`. All scripts 
 infra/
   config.env            Shared KEY=VALUE configuration (no secrets)
   provision/            Static infrastructure — no image dependency
-    apis.sh             GCP API enablement                        [auto]
-    storage.sh          GCS bucket + lifecycle rules              [auto]
-    bigquery.sh         BigQuery datasets + raw tables            [auto]
-    registry.sh         Artifact Registry repository              [auto]
-    secrets.sh          Secret Manager secret placeholders        [auto]
-    iam.sh              Service accounts + all IAM bindings       [auto]
-    _wif.sh             Workload Identity Federation setup        [manual — run once]
+    apis.sh             GCP API enablement                            [auto]
+    storage.sh          GCS bucket + lifecycle rules                  [auto]
+    bigquery.sh         BigQuery datasets + raw tables                [auto]
+    registry.sh         Artifact Registry repository                  [auto]
+    secrets.sh          Secret Manager secret placeholders            [auto]
+    iam.sh              Service accounts + resource-scoped IAM        [auto]
+    _project_iam.sh     Project-level IAM for pipeline SAs            [manual]
+    _wif.sh             Workload Identity Federation setup            [manual]
   deploy/               Application workloads — runs after images are pushed
-    jobs.sh             Cloud Run Job create/update               [auto]
+    jobs.sh             Cloud Run Job create/update                   [auto]
   lifecycle.json        GCS object retention policy
 dags/schemas/           BigQuery raw table schema definitions (shared with infra)
 ```
@@ -370,7 +371,7 @@ dags/schemas/           BigQuery raw table schema definitions (shared with infra
 | `dbt-runner` | 2 | 2Gi | — (uses Cloud Run SA + profiles.yml) |
 
 **Manual (not in script)**
-- `github-actions-sa` — created by hand; `SERVICE_ACCOUNT` JSON key set in GitHub repository secrets
+- `github-actions-sa` — created by hand with owner credentials; WIF attribute conditions configured in `_wif.sh`
 - Secret values — added via GCP console (`gcloud secrets versions add`)
 
 ---
@@ -388,13 +389,13 @@ dags/schemas/           BigQuery raw table schema definitions (shared with infra
 
 **GCP IAM**
 - Uniform bucket-level access — no per-object ACLs
-- Each service account is scoped to its specific operations; no SA has project-wide owner or editor
+- Each service account holds only the roles required for its specific operations; no SA has project-wide owner or editor
 - `DEPLOY_SHA` in `deploy/jobs.sh` is validated as a 40-character hex SHA before use as a Docker image tag
-- `bigquery.admin` and `resourcemanager.projectIamAdmin` removed from `github-actions-sa` — project-level IAM for pipeline SAs is handled by `_project_iam.sh` (manual-only). CI holds only the narrower roles required for provisioning and deployment
+- CI (`github-actions-sa`) holds provisioning roles only. Project-level IAM for pipeline SAs (`bigquery.dataEditor`, `run.invoker`, etc.) is granted via `_project_iam.sh` (manual-only, not delegated to CI)
 
 **GitHub Actions**
 - Global `permissions: contents: read`; deploy jobs explicitly elevate to `id-token: write`
-- Authentication uses Workload Identity Federation (OIDC) — no long-lived JSON keys. Pool and provider configured in `infra/provision/_wif.sh` (manual-only, run once with owner credentials). The `_` prefix convention marks scripts that must not be invoked by automation.
+- Authentication uses Workload Identity Federation (OIDC) — no long-lived JSON keys in GitHub Secrets. Pool and provider are configured in `infra/provision/_wif.sh` (manual-only)
 - Docker layer cache uses `type=gha` scoped per image — no cross-image cache pollution
 
 ---

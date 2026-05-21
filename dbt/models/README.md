@@ -21,8 +21,8 @@ One model per raw source. Views in BigQuery — no storage cost.
 | Model | Source | Key responsibilities |
 |:---|:---|:---|
 | `stg_lastfm_charts` | `raw.lastfm` | Casts types, generates `chart_key` surrogate on `artist_name + chart_week` (not MBID — nullable in source) |
-| `stg_mb_artists` | `raw.mb_dump` | Maps confirmed dump fields, parses partial date strings via `safe.parse_date`, validates `artist_type` |
-| `stg_spotify_tracks` | `raw.spotify` | Full confirmed schema; range tests on all 0–1 audio features, `popularity` 0–100, `key` 0–11 |
+| `stg_mb_artists` | `raw.mb_dump` | Maps dump fields, parses partial date strings via `safe.parse_date`, validates `artist_type` |
+| `stg_spotify_tracks` | `raw.spotify` | Range tests on all 0–1 audio features, `popularity` 0–100, `key` 0–11 |
 
 ## Intermediate (`intermediate/`)
 

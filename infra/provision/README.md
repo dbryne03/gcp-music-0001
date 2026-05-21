@@ -21,7 +21,7 @@ All scripts source `../config.env` at startup. Running them multiple times is sa
 
 ## Script naming convention
 
-Scripts prefixed with `_` are **manual-only** and must never be called by CI. They require owner-level credentials and are run once from a local terminal. The `_` prefix is the convention: if a script file starts with `_`, it is not a valid CI target.
+Scripts prefixed with `_` are **manual-only** and must never be called by CI. They require owner-level credentials and are run from a local terminal. The `_` prefix is the convention: if a script file starts with `_`, it is not a valid CI target.
 
 Automated scripts (no prefix) must be safe to run on every push with the `github-actions-sa` service account.
 

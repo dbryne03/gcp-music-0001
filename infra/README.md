@@ -9,13 +9,12 @@ for execution order.
 ## Naming convention
 
 Scripts prefixed with `_` are **manual-only** — they are never called by CI.
-This follows the convention used in shell tooling and some DevOps codebases
-where `_` marks a file as a supporting operation that requires human intent
-to run (one-off setup, sensitive privilege operations, etc.).
+They require owner-level credentials and are run from a local terminal.
+The `_` prefix is a deliberate signal: if a script starts with `_`, it is not
+a valid CI target and must not be added to any workflow.
 
-Automated scripts (no prefix) must be safe to run on every push.
-Manual scripts (`_` prefix) require owner-level credentials and are run once
-or on demand from a local terminal.
+Automated scripts (no prefix) are safe to run on every push with the
+`github-actions-sa` service account.
 
 ---
 
@@ -100,7 +99,7 @@ bash infra/deploy/jobs.sh
 ## GitHub Actions authentication
 
 GitHub Actions uses **Workload Identity Federation** (OIDC) — no long-lived JSON keys.
-The WIF pool and provider are configured once by `provision/_wif.sh` (manual-only).
+The WIF pool and provider are configured by `provision/_wif.sh` (manual-only).
 
 Required GitHub Actions variables (set in repo → Settings → Secrets and variables → Actions):
 
