@@ -328,18 +328,21 @@ Each `TriggerDagRunOperator` uses `wait_for_completion=True` and `poke_interval=
 
 GCP resources are provisioned by focused shell scripts in `infra/`. All scripts are idempotent, source shared variables from `infra/config.env`, and run automatically via GitHub Actions on every merge to `main`.
 
+**Script naming convention:** scripts prefixed with `_` are manual-only — never called by CI. They require owner-level credentials and are run once from a local terminal (sensitive privilege operations that a service account should not self-manage).
+
 ```
 infra/
   config.env            Shared KEY=VALUE configuration (no secrets)
   provision/            Static infrastructure — no image dependency
-    apis.sh             GCP API enablement
-    storage.sh          GCS bucket + lifecycle rules
-    bigquery.sh         BigQuery datasets + raw tables (schemas from dags/schemas/)
-    registry.sh         Artifact Registry repository
-    secrets.sh          Secret Manager secret placeholders
-    iam.sh              Service accounts + all IAM bindings
+    apis.sh             GCP API enablement                        [auto]
+    storage.sh          GCS bucket + lifecycle rules              [auto]
+    bigquery.sh         BigQuery datasets + raw tables            [auto]
+    registry.sh         Artifact Registry repository              [auto]
+    secrets.sh          Secret Manager secret placeholders        [auto]
+    iam.sh              Service accounts + all IAM bindings       [auto]
+    _wif.sh             Workload Identity Federation setup        [manual — run once]
   deploy/               Application workloads — runs after images are pushed
-    jobs.sh             Cloud Run Job create/update (image, CPU, memory, env, secrets)
+    jobs.sh             Cloud Run Job create/update               [auto]
   lifecycle.json        GCS object retention policy
 dags/schemas/           BigQuery raw table schema definitions (shared with infra)
 ```
@@ -391,7 +394,7 @@ dags/schemas/           BigQuery raw table schema definitions (shared with infra
 
 **GitHub Actions**
 - Global `permissions: contents: read`; deploy jobs explicitly elevate to `id-token: write`
-- `SERVICE_ACCOUNT` JSON key stored as a GitHub encrypted secret — OIDC/Workload Identity Federation is the preferred long-term replacement
+- Authentication uses Workload Identity Federation (OIDC) — no long-lived JSON keys. Pool and provider configured in `infra/provision/_wif.sh` (manual-only, run once with owner credentials). The `_` prefix convention marks scripts that must not be invoked by automation.
 - Docker layer cache uses `type=gha` scoped per image — no cross-image cache pollution
 
 ---

@@ -6,21 +6,35 @@ for execution order.
 
 ---
 
+## Naming convention
+
+Scripts prefixed with `_` are **manual-only** — they are never called by CI.
+This follows the convention used in shell tooling and some DevOps codebases
+where `_` marks a file as a supporting operation that requires human intent
+to run (one-off setup, sensitive privilege operations, etc.).
+
+Automated scripts (no prefix) must be safe to run on every push.
+Manual scripts (`_` prefix) require owner-level credentials and are run once
+or on demand from a local terminal.
+
+---
+
 ## Structure
 
 ```
 infra/
-  config.env          Shared configuration — project, region, resource names
-  lifecycle.json      GCS object lifecycle policy (raw/ → delete after 90 days)
+  config.env            Shared configuration — project, region, resource names
+  lifecycle.json        GCS object lifecycle policy (raw/ → delete after 90 days)
   provision/
-    apis.sh           Enable required GCP APIs
-    storage.sh        GCS bucket + lifecycle rules
-    bigquery.sh       BigQuery datasets and raw tables
-    registry.sh       Artifact Registry repository
-    secrets.sh        Secret Manager secret placeholders
-    iam.sh            Service accounts and IAM bindings
+    apis.sh             Enable required GCP APIs                         [auto]
+    storage.sh          GCS bucket + lifecycle rules                     [auto]
+    bigquery.sh         BigQuery datasets and raw tables                 [auto]
+    registry.sh         Artifact Registry repository                     [auto]
+    secrets.sh          Secret Manager secret placeholders               [auto]
+    iam.sh              Service accounts and IAM bindings                [auto]
+    _wif.sh             Workload Identity Federation setup               [manual]
   deploy/
-    jobs.sh           Cloud Run Jobs — create on first run, update image on re-run
+    jobs.sh             Cloud Run Jobs — create on first run, update image on re-run
 ```
 
 BigQuery table schemas live in `../dags/schemas/` — shared with the DAG layer.
