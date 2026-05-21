@@ -21,8 +21,9 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 1
-              max_value: 10000
+              arguments:
+                min_value: 1
+                max_value: 10000
       - name: listeners
         tests: [not_null]
       - name: playcount

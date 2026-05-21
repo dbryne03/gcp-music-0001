@@ -27,8 +27,9 @@ models:
         description: Spotify popularity score 0–100
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 100
+              arguments:
+                min_value: 0
+                max_value: 100
       - name: duration_ms
         description: Track duration in milliseconds
       - name: explicit
@@ -37,20 +38,23 @@ models:
         description: Danceability 0–1
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1
+              arguments:
+                min_value: 0
+                max_value: 1
       - name: energy
         description: Energy 0–1
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1
+              arguments:
+                min_value: 0
+                max_value: 1
       - name: key
         description: Musical key 0–11 (C=0 … B=11)
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 11
+              arguments:
+                min_value: 0
+                max_value: 11
       - name: loudness
         description: Average loudness in dB, typically –60 to 0
       - name: mode
@@ -63,37 +67,43 @@ models:
         description: Speechiness 0–1
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1
+              arguments:
+                min_value: 0
+                max_value: 1
       - name: acousticness
         description: Acousticness 0–1
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1
+              arguments:
+                min_value: 0
+                max_value: 1
       - name: instrumentalness
         description: Instrumentalness 0–1
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1
+              arguments:
+                min_value: 0
+                max_value: 1
       - name: liveness
         description: Liveness 0–1
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1
+              arguments:
+                min_value: 0
+                max_value: 1
       - name: valence
         description: Musical positiveness 0–1
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1
+              arguments:
+                min_value: 0
+                max_value: 1
       - name: tempo
         description: Estimated beats per minute
       - name: time_signature
         description: Estimated time signature (beats per bar) — Spotify allows 0–11
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 11
+              arguments:
+                min_value: 0
+                max_value: 11

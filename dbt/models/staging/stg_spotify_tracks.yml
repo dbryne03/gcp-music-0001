@@ -21,8 +21,9 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 100
+              arguments:
+                min_value: 0
+                max_value: 100
       - name: duration_ms
         tests: [not_null]
       - name: explicit
@@ -31,21 +32,24 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1
+              arguments:
+                min_value: 0
+                max_value: 1
       - name: energy
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1
+              arguments:
+                min_value: 0
+                max_value: 1
       - name: key
         description: Musical key 0–11 (C=0, C#=1 … B=11)
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 11
+              arguments:
+                min_value: 0
+                max_value: 11
       - name: loudness
         description: Average loudness in dB, typically –60 to 0
         tests: [not_null]
@@ -60,32 +64,37 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1
+              arguments:
+                min_value: 0
+                max_value: 1
       - name: acousticness
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1
+              arguments:
+                min_value: 0
+                max_value: 1
       - name: instrumentalness
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1
+              arguments:
+                min_value: 0
+                max_value: 1
       - name: liveness
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1
+              arguments:
+                min_value: 0
+                max_value: 1
       - name: valence
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1
+              arguments:
+                min_value: 0
+                max_value: 1
       - name: tempo
         description: Beats per minute
         tests: [not_null]
@@ -94,7 +103,8 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 11
+              arguments:
+                min_value: 0
+                max_value: 11
       - name: _ingested_at
         tests: [not_null]
