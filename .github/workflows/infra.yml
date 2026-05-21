@@ -74,6 +74,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      actions: write
     environment: production
     steps:
       - name: Checkout
@@ -115,3 +116,12 @@ jobs:
           echo "## Infrastructure provisioned" >> $GITHUB_STEP_SUMMARY
           echo "Commit: \`${SHA:0:7}\`" >> $GITHUB_STEP_SUMMARY
           echo "Environment: production" >> $GITHUB_STEP_SUMMARY
+
+      - name: Cascade full deploy on manual run
+        if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run deploy.yml \
+            --repo "${{ github.repository }}" \
+            --ref main
