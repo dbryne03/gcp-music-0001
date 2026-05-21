@@ -113,9 +113,6 @@ jobs:
       - name: Provision IAM
         run: bash infra/provision/iam.sh
 
-      - name: Provision Workload Identity Federation
-        run: bash infra/provision/wif.sh
-
       - name: Summary
         run: |
           SHA="${{ github.event.workflow_run.head_sha || github.sha }}"

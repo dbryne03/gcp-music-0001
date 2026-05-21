@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 # Configures Workload Identity Federation for GitHub Actions.
 # Eliminates the long-lived SERVICE_ACCOUNT JSON key.
-# Run manually once with owner-level credentials before the first
-# CI run that uses OIDC auth. Subsequent runs are idempotent.
+#
+# MANUAL USE ONLY — not called from CI. github-actions-sa does not
+# hold iam.workloadIdentityPoolAdmin (a SA managing its own auth
+# provider is a security anti-pattern).
+#
+# Run once with owner-level credentials:
+#   bash infra/provision/wif.sh
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 set -a; source "${SCRIPT_DIR}/../config.env"; set +a
