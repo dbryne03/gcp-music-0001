@@ -28,7 +28,7 @@ jobs:
       contents: read
       actions: read
     outputs:
-      infra: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.infra == 'true' }}
+      infra: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'workflow_dispatch' || steps.filter.outputs.infra == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6

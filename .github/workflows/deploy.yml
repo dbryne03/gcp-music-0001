@@ -37,12 +37,12 @@ jobs:
       contents: read
       actions: read
     outputs:
-      extractors:   ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.extractors == 'true' }}
-      dbt:          ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.dbt == 'true' }}
-      dags:         ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.dags == 'true' }}
-      astro-image:  ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.astro-image == 'true' }}
-      images:       ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.images == 'true' }}
-      infra-deploy: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.infra-deploy == 'true' }}
+      extractors:   ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'workflow_dispatch' || steps.filter.outputs.extractors == 'true' }}
+      dbt:          ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'workflow_dispatch' || steps.filter.outputs.dbt == 'true' }}
+      dags:         ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'workflow_dispatch' || steps.filter.outputs.dags == 'true' }}
+      astro-image:  ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'workflow_dispatch' || steps.filter.outputs.astro-image == 'true' }}
+      images:       ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'workflow_dispatch' || steps.filter.outputs.images == 'true' }}
+      infra-deploy: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'workflow_dispatch' || steps.filter.outputs.infra-deploy == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
