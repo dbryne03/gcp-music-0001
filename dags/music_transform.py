@@ -5,7 +5,7 @@ import config
 
 with DAG(
     dag_id=config.DAG_TRANSFORM,
-    description="dbt run and test — triggered by music_pipeline once all loads complete",
+    description="dbt source freshness check, run, and test",
     default_args=config.DEFAULT_TASK_ARGS,
     on_failure_callback=config.on_pipeline_failure,
     schedule=None,
@@ -13,6 +13,15 @@ with DAG(
     catchup=False,
     tags=["music", "gcp", "dbt", "monthly"],
 ) as dag:
+
+    check_freshness = CloudRunExecuteJobOperator(
+        task_id="check_source_freshness",
+        project_id=config.GCP_PROJECT,
+        region=config.GCP_REGION,
+        job_name=config.JOB_DBT_RUNNER,
+        gcp_conn_id=config.GCP_CONN_ID,
+        overrides={"container_overrides": [{"args": ["source", "freshness"]}]},
+    )
 
     run_dbt = CloudRunExecuteJobOperator(
         task_id="run_dbt",
@@ -32,4 +41,4 @@ with DAG(
         overrides={"container_overrides": [{"args": ["test"]}]},
     )
 
-    run_dbt >> test_dbt
+    check_freshness >> run_dbt >> test_dbt

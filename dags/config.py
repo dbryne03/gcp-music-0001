@@ -81,10 +81,12 @@ DEFAULT_TASK_ARGS = {
 
 # ── Failure callback ──────────────────────────────────────────────────────────
 def on_pipeline_failure(context: dict) -> None:
-    """Log a structured failure alert when any task in a source pipeline fails.
+    """Log a structured failure alert when any task in a pipeline fails.
 
-    Called by Airflow after all retries are exhausted. Extend this function
-    to emit Slack or email notifications when an alerting integration is added.
+    Called by Airflow after all retries are exhausted. The log entry is
+    structured to make failures easy to query in Cloud Logging. Extend this
+    function to emit Slack or email notifications when an alerting integration
+    is added.
 
     Args:
         context: Airflow task context dictionary provided by the scheduler.
@@ -94,8 +96,25 @@ def on_pipeline_failure(context: dict) -> None:
     run_id   = context["run_id"]
     exc      = context.get("exception")
 
-    logger.error(
-        "PIPELINE FAILURE — dag=%s task=%s run=%s exception=%s",
-        dag_id, task_id, run_id, exc,
-    )
+    # Distinguish dbt test failures — these indicate data quality regressions
+    # that need immediate attention rather than infrastructure issues.
+    if task_id == "test_dbt":
+        logger.error(
+            "DATA QUALITY FAILURE — dbt tests failed. "
+            "dag=%s run=%s exception=%s. "
+            "Check Cloud Run logs for which tests failed.",
+            dag_id, run_id, exc,
+        )
+    elif task_id == "check_source_freshness":
+        logger.error(
+            "STALE SOURCE DATA — dbt source freshness check failed. "
+            "dag=%s run=%s exception=%s. "
+            "One or more raw tables were not loaded within the freshness threshold.",
+            dag_id, run_id, exc,
+        )
+    else:
+        logger.error(
+            "PIPELINE FAILURE — dag=%s task=%s run=%s exception=%s",
+            dag_id, task_id, run_id, exc,
+        )
     # TODO: add Slack / email alert here
