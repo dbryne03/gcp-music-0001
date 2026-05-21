@@ -35,7 +35,7 @@ Ephemeral — compiled inline by the models that reference them; no BigQuery obj
 
 ## Mart (`mart/`)
 
-Dimensional models — tables in BigQuery, consumed by Looker Studio and Google Sheets.
+Dimensional models — tables in BigQuery, consumed by Data Studio and Google Sheets.
 
 | Model | Grain | Description |
 |:---|:---|:---|

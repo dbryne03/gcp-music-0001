@@ -4,12 +4,12 @@ Monthly music intelligence pipeline on Google Cloud Platform.
 
 [![Status](https://img.shields.io/badge/Status-In%20Development-orange?style=flat-square)]()
 [![Portfolio](https://img.shields.io/badge/Portfolio-Google%20Cloud%20Platform%20%230001-3b7d5c?style=flat-square)](https://davidbryneadedeji.com/docs/projects/gcp0001)
-[![Looker Studio](https://img.shields.io/badge/Live-Looker%20Studio%20Dashboard-4285F4?style=flat-square&logo=googleanalytics&logoColor=white)](#)
+[![Data Studio](https://img.shields.io/badge/Live-Data%20Studio%20Dashboard-4285F4?style=flat-square&logo=googleanalytics&logoColor=white)](#)
 [![Sheets](https://img.shields.io/badge/Live-Google%20Sheets%20Report-34A853?style=flat-square&logo=googlesheets&logoColor=white)](#)
 
 ---
 
-Ingests chart, artist, and track data from three external sources on the first of each month, unifies them in BigQuery via dbt, and surfaces insights through Looker Studio and Google Sheets. Infrastructure runs entirely on GCP, provisioned via idempotent gcloud CLI scripts managed by GitHub Actions.
+Ingests chart, artist, and track data from three external sources on the first of each month, unifies them in BigQuery via dbt, and surfaces insights through Data Studio and Google Sheets. Infrastructure runs entirely on GCP, provisioned via idempotent gcloud CLI scripts managed by GitHub Actions.
 
 A full Technical Design Document is available in [TDD.md](TDD.md).
 
@@ -23,7 +23,7 @@ A full Technical Design Document is available in [TDD.md](TDD.md).
 | Warehousing | Google BigQuery |
 | Transformation | dbt Core |
 | Orchestration | Astronomer Cloud (managed Airflow 3.2.1) |
-| Reporting | Looker Studio, Google Sheets |
+| Reporting | Data Studio, Google Sheets |
 | IaC | gcloud CLI (Shell) |
 | CI/CD | GitHub Actions |
 | Secrets | GCP Secret Manager |

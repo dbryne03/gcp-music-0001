@@ -8,7 +8,7 @@
 
 ## 1. Overview
 
-A monthly music intelligence pipeline that ingests chart, artist, and track data from three external sources, unifies them in BigQuery via dbt, and surfaces insights through Looker Studio and Google Sheets. The pipeline runs on the first of each month, orchestrated by Airflow on Astronomer Cloud, with all infrastructure provisioned on GCP via an idempotent gcloud CLI bootstrap script.
+A monthly music intelligence pipeline that ingests chart, artist, and track data from three external sources, unifies them in BigQuery via dbt, and surfaces insights through Data Studio and Google Sheets. The pipeline runs on the first of each month, orchestrated by Airflow on Astronomer Cloud, with all infrastructure provisioned on GCP via an idempotent gcloud CLI bootstrap script.
 
 The central analytical question: **which artists and tracks are dominating charts, and what do we know about them?**
 
@@ -19,7 +19,7 @@ The central analytical question: **which artists and tracks are dominating chart
 - Ingest Last.fm weekly chart data, MusicBrainz artist metadata, and a Spotify tracks dataset on a monthly cadence
 - Produce a clean dimensional model (`dim_artist`, `dim_track`, `fact_chart_position`) in BigQuery
 - Resolve artist identities across sources using MusicBrainz MBID as the canonical key
-- Deliver four dashboard pages in Looker Studio and a structured Google Sheets report
+- Deliver four dashboard pages in Data Studio and a structured Google Sheets report
 
 ---
 
@@ -41,7 +41,7 @@ The central analytical question: **which artists and tracks are dominating chart
 | Warehousing | Google BigQuery |
 | Transformation | dbt Core + dbt-utils |
 | Orchestration | Astronomer Cloud (managed Airflow) |
-| Reporting | Looker Studio, Google Sheets |
+| Reporting | Data Studio, Google Sheets |
 | IaC | gcloud CLI (Shell) |
 | CI/CD | GitHub Actions |
 | Secrets | GCP Secret Manager |
@@ -102,7 +102,7 @@ flowchart LR
     end
 
     subgraph RPT["Reporting"]
-        LOOKER["Looker Studio"]
+        LOOKER["Data Studio"]
         SHEETS["Google Sheets"]
     end
 
@@ -449,5 +449,5 @@ Email delivery uses Gmail SMTP with an App Password. The required Airflow enviro
 
 | Area | Item |
 |:---|:---|
-| Reporting | Connect BigQuery to Looker Studio — build four dashboard pages |
+| Reporting | Connect BigQuery to Data Studio — build four dashboard pages |
 | Reporting | Connect BigQuery to Google Sheets via native connector |

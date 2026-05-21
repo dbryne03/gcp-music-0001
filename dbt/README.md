@@ -1,6 +1,6 @@
 # dbt
 
-dbt Core transformation layer for `gcp-music-0001`. Transforms raw BigQuery tables into a clean dimensional model consumed by Looker Studio and Google Sheets.
+dbt Core transformation layer for `gcp-music-0001`. Transforms raw BigQuery tables into a clean dimensional model consumed by Data Studio and Google Sheets.
 
 ---
 
