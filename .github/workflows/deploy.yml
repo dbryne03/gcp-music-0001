@@ -32,25 +32,46 @@ jobs:
   changes:
     name: Detect changed paths
     runs-on: ubuntu-24.04
-    timeout-minutes: 2
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
     outputs:
-      extractors:    ${{ steps.filter.outputs.extractors }}
-      dbt:           ${{ steps.filter.outputs.dbt }}
-      dags:          ${{ steps.filter.outputs.dags }}
-      astro-image:   ${{ steps.filter.outputs.astro-image }}
-      images:        ${{ steps.filter.outputs.images }}
-      infra-deploy:  ${{ steps.filter.outputs.infra-deploy }}
+      extractors:   ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.extractors == 'true' }}
+      dbt:          ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.dbt == 'true' }}
+      dags:         ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.dags == 'true' }}
+      astro-image:  ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.astro-image == 'true' }}
+      images:       ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.images == 'true' }}
+      infra-deploy: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.infra-deploy == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           ref: ${{ inputs.sha || github.event.workflow_run.head_sha || github.sha }}
-          fetch-depth: 2
+          fetch-depth: 0
+
+      - name: Get base SHA for comparison
+        id: base
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LAST=$(gh run list \
+            --repo "${{ github.repository }}" \
+            --workflow "${{ github.workflow }}" \
+            --branch main \
+            --status success \
+            --limit 1 \
+            --json headSha \
+            --jq '.[0].headSha' 2>/dev/null || echo "")
+          echo "sha=${LAST:-HEAD~1}" >> $GITHUB_OUTPUT
 
       - name: Filter paths
         uses: dorny/paths-filter@v3
         id: filter
+        if: github.event_name != 'workflow_dispatch'
         with:
+          base: ${{ steps.base.outputs.sha }}
           filters: |
             extractors:
               - 'extractors/**'

@@ -23,20 +23,41 @@ jobs:
   changes:
     name: Detect changed paths
     runs-on: ubuntu-24.04
-    timeout-minutes: 2
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
     outputs:
-      infra: ${{ steps.filter.outputs.infra }}
+      infra: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.infra == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-          fetch-depth: 2
+          fetch-depth: 0
+
+      - name: Get base SHA for comparison
+        id: base
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LAST=$(gh run list \
+            --repo "${{ github.repository }}" \
+            --workflow "${{ github.workflow }}" \
+            --branch main \
+            --status success \
+            --limit 1 \
+            --json headSha \
+            --jq '.[0].headSha' 2>/dev/null || echo "")
+          echo "sha=${LAST:-HEAD~1}" >> $GITHUB_OUTPUT
 
       - name: Filter paths
         uses: dorny/paths-filter@v3
         id: filter
+        if: github.event_name != 'workflow_dispatch'
         with:
+          base: ${{ steps.base.outputs.sha }}
           filters: |
             infra:
               - 'infra/**'
