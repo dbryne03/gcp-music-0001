@@ -13,6 +13,10 @@ renamed as (
         cast(playcount as integer)      as playcount,
         _ingested_at
     from source
+    qualify row_number() over (
+        partition by artist_name, chart_week
+        order by _ingested_at desc
+    ) = 1
 )
 
 select * from renamed
