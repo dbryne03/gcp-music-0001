@@ -24,33 +24,36 @@ declare -A JOB_RESOURCES=(
     ["dbt-runner"]="2:2Gi"
 )
 
-declare -A JOBS=(
-    ["lastfm-producer"]="${REGISTRY}/lastfm-producer:${TAG}"
-    ["lastfm-consumer"]="${REGISTRY}/lastfm-consumer:${TAG}"
-    ["musicbrainz-extractor"]="${REGISTRY}/musicbrainz-extractor:${TAG}"
-    ["spotify-extractor"]="${REGISTRY}/spotify-extractor:${TAG}"
-    ["dbt-runner"]="${REGISTRY}/dbt-runner:${TAG}"
+declare -A JOB_IMAGES=(
+    ["lastfm-producer"]="${REGISTRY}/lastfm-producer"
+    ["lastfm-consumer"]="${REGISTRY}/lastfm-consumer"
+    ["musicbrainz-extractor"]="${REGISTRY}/musicbrainz-extractor"
+    ["spotify-extractor"]="${REGISTRY}/spotify-extractor"
+    ["dbt-runner"]="${REGISTRY}/dbt-runner"
 )
 
-for JOB_NAME in "${!JOBS[@]}"; do
-    IMAGE="${JOBS[$JOB_NAME]}"
+for JOB_NAME in "${!JOB_IMAGES[@]}"; do
+    BASE_IMAGE="${JOB_IMAGES[$JOB_NAME]}"
     RESOURCES="${JOB_RESOURCES[$JOB_NAME]}"
     CPU="${RESOURCES%%:*}"
     MEMORY="${RESOURCES##*:}"
 
     if gcloud run jobs describe "${JOB_NAME}" \
             --project="${PROJECT}" --region="${REGION}" &>/dev/null 2>&1; then
+        # Update: always use :latest — ensures the job runs the most recently
+        # built image without failing when only some images were rebuilt this run.
         echo "  [update]  ${JOB_NAME} (${CPU} vCPU, ${MEMORY})"
         gcloud run jobs update "${JOB_NAME}" \
-            --image="${IMAGE}" \
+            --image="${BASE_IMAGE}:latest" \
             --cpu="${CPU}" \
             --memory="${MEMORY}" \
             --region="${REGION}" \
             --project="${PROJECT}"
     else
+        # Create: pin to the exact SHA for reproducibility at creation time.
         echo "  [create]  ${JOB_NAME} (${CPU} vCPU, ${MEMORY})"
         gcloud run jobs create "${JOB_NAME}" \
-            --image="${IMAGE}" \
+            --image="${BASE_IMAGE}:${TAG}" \
             --service-account="${CLOUDRUN_SA}" \
             --cpu="${CPU}" \
             --memory="${MEMORY}" \
